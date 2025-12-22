@@ -1,6 +1,6 @@
 # Install
 ```
-uv add grafo-ai-tools
+uv add py-ai-toolkit
 ```
 
 # WHAT
