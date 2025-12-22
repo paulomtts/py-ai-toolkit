@@ -1,7 +1,7 @@
 import os
 
-from ait.adapters import InstructorAdapter, Jinja2Adapter, PydanticAdapter
-from ait.core.ports import FormatterPort, LLMPort, ModellerPort
+from py_ai_toolkit.adapters import InstructorAdapter, Jinja2Adapter, PydanticAdapter
+from py_ai_toolkit.core.ports import FormatterPort, LLMPort, ModellerPort
 
 
 def create_llm_client(

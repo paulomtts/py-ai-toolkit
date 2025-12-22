@@ -25,7 +25,7 @@ Grafo (see Recommended Docs below) is a library for building executable DAGs whe
 # Examples
 ### Simple text:
 ```python
-from ait import AIT
+from py_ai_toolkit import AIT
 
 ait = AIT("gpt-5")
 path = "./prompt.md"
@@ -36,7 +36,7 @@ print(response.content)
 
 ### Structured response:
 ```python
-from ait import AIT
+from py_ai_toolkit import AIT
 from pydantic import BaseModel
 
 class Purchase(BaseModel):
@@ -51,7 +51,7 @@ response = ait.asend(response_model=Fruit, path=path, message=message)
 
 ### Structured response with model type injection:
 ```python
-from ait import AIT
+from py_ai_toolkit import AIT
 from pydantic import BaseModel
 
 class Purchase(BaseModel):
@@ -70,7 +70,7 @@ response = ait.asend(response_model=Purchase, path=path, message=message)
 
 ### Simple workflow:
 ```python
-from ait import AIT, BaseWorkflow, Node
+from py_ai_toolkit import AIT, BaseWorkflow, Node
 from pydantic import BaseModel
 
 class Purchase(BaseModel):

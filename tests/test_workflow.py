@@ -3,8 +3,8 @@ from typing import Literal
 import pytest
 from pydantic import BaseModel
 
-from ait import AITools, BaseWorkflow, Node, TreeExecutor
-from ait.core.domain.errors import BaseError
+from py_ai_toolkit import AITools, BaseWorkflow, Node, TreeExecutor
+from py_ai_toolkit.core.domain.errors import BaseError
 
 
 class FruitPurchase(BaseModel):

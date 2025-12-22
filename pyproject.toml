@@ -27,6 +27,7 @@ dependencies = [
     "grafo>=0.2.36",
     "instructor>=1.13.0",
     "openai>=1.104.2",
+    "pydantic>=2.12.4",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
     "pyyaml>=6.0.2",

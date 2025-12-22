@@ -1,6 +1,6 @@
 from httpx import HTTPError
 
-from ait.core.utils import logger
+from py_ai_toolkit.core.utils import logger
 
 
 class BaseError(HTTPError):

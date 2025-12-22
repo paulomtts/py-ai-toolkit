@@ -4,7 +4,7 @@ from typing import Any, Type, TypeVar
 from pydantic import BaseModel, Field, create_model
 from pydantic_core import PydanticUndefined
 
-from ait.core.ports import ModellerPort
+from py_ai_toolkit.core.ports import ModellerPort
 
 T = TypeVar("T", bound=BaseModel)
 

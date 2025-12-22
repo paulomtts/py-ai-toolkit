@@ -5,9 +5,9 @@ import instructor
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
-from ait.core.domain.errors import LLMAdapterError
-from ait.core.domain.interfaces import CompletionResponse, T
-from ait.core.ports import LLMPort
+from py_ai_toolkit.core.domain.errors import LLMAdapterError
+from py_ai_toolkit.core.domain.interfaces import CompletionResponse, T
+from py_ai_toolkit.core.ports import LLMPort
 
 
 class InstructorAdapter(LLMPort):

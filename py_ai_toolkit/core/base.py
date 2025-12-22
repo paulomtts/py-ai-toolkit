@@ -4,10 +4,10 @@ from typing import Any, Type, TypeVar, Union
 from grafo import Node
 from pydantic import BaseModel
 
-from ait.core.domain.errors import BaseError
-from ait.core.ports import WorkflowPort
-from ait.core.tools import AITools
-from ait.core.utils import logger
+from py_ai_toolkit.core.domain.errors import BaseError
+from py_ai_toolkit.core.ports import WorkflowPort
+from py_ai_toolkit.core.tools import AITools
+from py_ai_toolkit.core.utils import logger
 
 S = TypeVar("S", bound=BaseModel)
 V = TypeVar("V", bound=BaseModel)

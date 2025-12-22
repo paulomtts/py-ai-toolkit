@@ -4,8 +4,8 @@ from typing import Any, AsyncGenerator, Type, TypeVar
 from pydantic import BaseModel
 from toon_python import encode
 
-from ait.core.domain.interfaces import CompletionResponse
-from ait.factories import (
+from py_ai_toolkit.core.domain.interfaces import CompletionResponse
+from py_ai_toolkit.factories import (
     create_llm_client,
     create_model_handler,
     create_prompt_formatter,
