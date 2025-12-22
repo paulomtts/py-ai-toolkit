@@ -8,13 +8,13 @@ from .adapters import PydanticAdapter as ModelService
 from .core.base import BaseWorkflow
 from .core.domain.errors import BaseError
 from .core.domain.interfaces import CompletionResponse
-from .core.tools import AITools
+from .core.tools import PyAIToolkit
 
 __all__ = [
     "LLMClient",
     "PromptFormatter",
     "ModelService",
-    "AITools",
+    "PyAIToolkit",
     "CompletionResponse",
     "Node",
     "TreeExecutor",

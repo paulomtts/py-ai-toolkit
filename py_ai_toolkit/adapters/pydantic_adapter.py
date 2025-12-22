@@ -57,9 +57,9 @@ class PydanticAdapter(ModellerPort):
         """
         Reduces the model schema into version with less tokens. Helpful for reducing prompt noise.
         """
-        reduced_schema = ""
+        reduced_schema = []
         for field, info in model.model_fields.items():
-            reduced_schema += (
+            reduced_schema.append(
                 f"{field}({info.annotation}"
                 + (
                     f", default={info.default})"
@@ -68,4 +68,4 @@ class PydanticAdapter(ModellerPort):
                 )
                 + (f": {info.description}" if include_description else "")
             )
-        return reduced_schema
+        return "\n".join(reduced_schema)

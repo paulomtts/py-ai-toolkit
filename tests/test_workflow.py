@@ -3,7 +3,7 @@ from typing import Literal
 import pytest
 from pydantic import BaseModel
 
-from py_ai_toolkit import AITools, BaseWorkflow, Node, TreeExecutor
+from py_ai_toolkit import BaseWorkflow, Node, PyAIToolkit, TreeExecutor
 from py_ai_toolkit.core.domain.errors import BaseError
 
 
@@ -23,7 +23,7 @@ class MockWorkflowError(BaseError):
 
 
 class MockWorkflow(BaseWorkflow):
-    def __init__(self, ait: AITools):
+    def __init__(self, ait: PyAIToolkit):
         super().__init__(ait, MockWorkflowError)
 
     async def fruit_purchase(self, **_) -> FruitPurchase:
@@ -41,7 +41,7 @@ class MockWorkflow(BaseWorkflow):
             uuid="purchase_node",
             coroutine=self.fruit_purchase,
             kwargs=dict(
-                path="./tests/purchase.md",
+                prompt="{{ message }}",
                 response_model=FruitPurchase,
                 message=message,
             ),
@@ -77,7 +77,7 @@ class MockWorkflow(BaseWorkflow):
 
 @pytest.mark.asyncio
 async def test_mock_workflow():
-    ait = AITools("qwen3:8b")
+    ait = PyAIToolkit("qwen3:8b")
     workflow = MockWorkflow(ait)
     result = await workflow.run("I want to buy 5 apples")
     assert isinstance(result, FruitPurchase)

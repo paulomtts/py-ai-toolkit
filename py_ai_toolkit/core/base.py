@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from py_ai_toolkit.core.domain.errors import BaseError
 from py_ai_toolkit.core.ports import WorkflowPort
-from py_ai_toolkit.core.tools import AITools
+from py_ai_toolkit.core.tools import PyAIToolkit
 from py_ai_toolkit.core.utils import logger
 
 S = TypeVar("S", bound=BaseModel)
@@ -23,12 +23,12 @@ class BaseWorkflow(WorkflowPort):
 
     def __init__(
         self,
-        ait: AITools,
+        ai_toolkit: PyAIToolkit,
         error_class: Type[BaseError],
         max_retries: int = MAX_RETRIES,
         echo: bool = False,
     ):
-        self.ait = ait
+        self.ai_toolkit = ai_toolkit
         self.ErrorClass = error_class
         self.echo = echo
 
@@ -56,10 +56,10 @@ class BaseWorkflow(WorkflowPort):
         """
 
         if not response_model:
-            response = await self.ait.chat(path=path, **kwargs)
+            response = await self.ai_toolkit.chat(path=path, **kwargs)
             return response.content
 
-        response = await self.ait.asend(
+        response = await self.ai_toolkit.asend(
             response_model=response_model,
             path=path,
             **kwargs,

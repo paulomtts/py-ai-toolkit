@@ -16,7 +16,7 @@ N = TypeVar("N")
 C = TypeVar("C")
 
 
-class AITools:
+class PyAIToolkit:
     """
     A class that bundles methods for easily interacting with LLMs and manipulating pydantic BaseModels.
     """
@@ -87,7 +87,9 @@ class AITools:
         """
         return self.model_handler.reduce_model_schema(model, include_description)
 
-    def _prepare_messages(self, path: str, **kwargs: Any) -> list:
+    def _prepare_messages(
+        self, path: str | None = None, prompt: str | None = None, **kwargs: Any
+    ) -> list:
         for key, value in kwargs.items():
             if isinstance(value, BaseModel):
                 kwargs[key] = encode(value.model_dump_json())
@@ -98,17 +100,19 @@ class AITools:
                 and all(isinstance(item, type(value[0])) for item in value)
             ):
                 kwargs[key] = encode([item.model_dump_json() for item in value])
-        prompt = self.prompt_formatter.render(
+        final_prompt = self.prompt_formatter.render(
             path=path,
+            prompt=prompt,
             input=kwargs,
         )
         return [
-            {"role": "system", "content": prompt},
+            {"role": "system", "content": final_prompt},
         ]
 
     async def chat(
         self,
-        path: str,
+        path: str | None = None,
+        prompt: str | None = None,
         **kwargs: Any,
     ) -> CompletionResponse:
         """
@@ -121,12 +125,13 @@ class AITools:
         Returns:
             CompletionResponse: The response from the LLM with text content
         """
-        messages = self._prepare_messages(path, **kwargs)
+        messages = self._prepare_messages(path, prompt, **kwargs)
         return await self.llm_client.chat(messages=messages)
 
     async def stream(
         self,
-        path: str,
+        path: str | None = None,
+        prompt: str | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[CompletionResponse, None]:
         """
@@ -139,14 +144,15 @@ class AITools:
         Returns:
             AsyncGenerator[CompletionResponse, None]: Stream of responses from the LLM
         """
-        messages = self._prepare_messages(path, **kwargs)
+        messages = self._prepare_messages(path, prompt, **kwargs)
         async for response in self.llm_client.stream(messages=messages):
             yield response
 
     async def asend(
         self,
         response_model: Type[T],
-        path: str,
+        path: str | None = None,
+        prompt: str | None = None,
         **kwargs: Any,
     ) -> CompletionResponse[T]:
         """
@@ -160,7 +166,7 @@ class AITools:
         Returns:
             CompletionResponse[T]: The response from the LLM with structured content
         """
-        messages = self._prepare_messages(path, **kwargs)
+        messages = self._prepare_messages(path, prompt, **kwargs)
         response = await self.llm_client.asend(
             messages=messages,
             response_model=response_model,
