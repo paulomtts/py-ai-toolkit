@@ -1,5 +1,3 @@
-import os
-
 from py_ai_toolkit.adapters import InstructorAdapter, Jinja2Adapter, PydanticAdapter
 from py_ai_toolkit.core.ports import FormatterPort, LLMPort, ModellerPort
 
@@ -23,10 +21,6 @@ def create_llm_client(
     Raises:
         ValueError: If required configuration is missing
     """
-    model = model
-    embedding_model = embedding_model or os.getenv(
-        "EMBEDDING_MODEL", "text-embedding-ada-002"
-    )
     return InstructorAdapter(
         model=model,
         embedding_model=embedding_model,

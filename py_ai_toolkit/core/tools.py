@@ -109,6 +109,12 @@ class PyAIToolkit:
             {"role": "system", "content": final_prompt},
         ]
 
+    async def embed(self, text: str) -> list[float]:
+        """
+        Embeds text into a vector space.
+        """
+        return await self.llm_client.embed(text=text)
+
     async def chat(
         self,
         path: str | None = None,

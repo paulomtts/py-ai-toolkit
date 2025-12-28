@@ -36,6 +36,16 @@ class InstructorAdapter(LLMPort):
             mode=instructor.Mode.JSON,
         )
 
+    async def embed(self, text: str) -> list[float]:
+        """
+        Embeds text into a vector space.
+        """
+        response = await self.openai_client.embeddings.create(
+            model=self._embedding_model,
+            input=[text],
+        )
+        return response.data[0].embedding
+
     async def chat(self, messages: list[dict[str, str]]) -> CompletionResponse:
         """
         Sends a message to the LLM and returns a structured response.

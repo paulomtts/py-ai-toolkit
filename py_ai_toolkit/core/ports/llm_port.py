@@ -14,6 +14,13 @@ class LLMPort(ABC):
     """
 
     @abstractmethod
+    async def embed(self, text: str) -> list[float]:
+        """
+        Embeds text into a vector space.
+        """
+        pass
+
+    @abstractmethod
     async def chat(self, messages: list[dict[str, str]]) -> CompletionResponse:
         """
         Sends a message to the LLM and returns a text response.
