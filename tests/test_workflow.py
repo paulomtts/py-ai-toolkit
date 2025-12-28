@@ -67,39 +67,28 @@ class MockWorkflow(BaseWorkflow):
             ),
         )
 
-        validation_nodes = await self.create_validation_nodes(
+        validation_node = await self.create_validation_nodes(
             coroutine=self.validation_coroutine,
             input=message,
             issues=["The identified purchase matches the user's request."],
             source_node=purchase_node,
         )
 
-        for validation_node in validation_nodes:
-            await purchase_node.connect(validation_node)
+        await purchase_node.connect(validation_node)
         executor = TreeExecutor(uuid="Test Workflow", roots=[purchase_node])
         await executor.run()
 
-        if not purchase_node.output or not any(
-            validation_node.output for validation_node in validation_nodes
-        ):
+        if not purchase_node.output or not validation_node.output:
             raise ValueError("Purchase validation failed")
 
-        failed_validation_nodes = [
-            validation_node
-            for validation_node in validation_nodes
-            if validation_node.output and not validation_node.output.valid
-        ]
-        if failed_validation_nodes:
+        if not validation_node.output.valid:
             raise self.ErrorClass(
                 status_code=400,
-                message=f"Max retries reached. Validation node output: {[validation_node.output.model_dump_json(indent=4) for validation_node in failed_validation_nodes if validation_node.output]}",
+                message=f"Max retries reached. Validation node output: {validation_node.output.model_dump_json(indent=4)}",
             )
 
         print(purchase_node.output.model_dump_json(indent=4))
-        for validation_node in failed_validation_nodes:
-            if not validation_node.output:
-                continue
-            print(validation_node.output.model_dump_json(indent=4))
+        print(validation_node.output.model_dump_json(indent=4))
 
         return purchase_node.output
 
