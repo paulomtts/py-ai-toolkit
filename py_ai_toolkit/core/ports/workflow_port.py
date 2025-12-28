@@ -57,7 +57,7 @@ class WorkflowPort(ABC):
         pass
 
     @abstractmethod
-    async def create_validation_nodes(
+    def create_validation_nodes(
         self,
         input: Any,
         issues: list[str],
@@ -65,7 +65,7 @@ class WorkflowPort(ABC):
         target_nodes: list[Node[T]] | None = None,
         coroutine: AwaitableCallback | None = None,
         split_tests: bool = False,
-    ) -> list[Node[BaseValidation]]:
+    ) -> Node[BaseValidation] | list[Node[BaseValidation]]:
         """
         Create a validation node.
         """

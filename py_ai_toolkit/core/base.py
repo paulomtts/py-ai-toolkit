@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Type, TypeVar, Union, overload
+from typing import Any, Literal, Type, TypeVar, Union, overload
 
 from grafo import Node
 from grafo._internal import AwaitableCallback
@@ -163,7 +163,17 @@ class BaseWorkflow(WorkflowPort):
         ) + str(failed_tests_reasonings)
         await validation_node.connect(source_node)
 
-    def _create_validation_model(self, issues: list[str]) -> list[Type[ValidationTest]]:
+    @overload
+    def _create_validation_model(self, issues: list[str]) -> Type[BaseValidation]: ...
+
+    @overload
+    def _create_validation_model(
+        self, issues: list[str], *, split_tests: Literal[True]
+    ) -> list[Type[ValidationTest]]: ...
+
+    def _create_validation_model(
+        self, issues: list[str], split_tests: bool = False
+    ) -> Type[BaseValidation] | list[Type[ValidationTest]]:
         """
         Creates a validation model for a list of issues.
 
@@ -173,12 +183,17 @@ class BaseWorkflow(WorkflowPort):
         Returns:
             list[Type[ValidationTest]]: The validation models
         """
-        return [
+        validation_models = [
             self.ai_toolkit.inject_types(ValidationTest, [], issue) for issue in issues
         ]
+        if split_tests:
+            return validation_models
+        return self.ai_toolkit.inject_types(
+            BaseValidation, [("validations", list[Union[*validation_models]])]
+        )
 
     @overload
-    async def create_validation_nodes(
+    def create_validation_nodes(
         self,
         input: Any,
         issues: list[str],
@@ -188,17 +203,18 @@ class BaseWorkflow(WorkflowPort):
     ) -> Node[BaseValidation]: ...
 
     @overload
-    async def create_validation_nodes(
+    def create_validation_nodes(
         self,
         input: Any,
         issues: list[str],
         source_node: Node[Any],
         target_nodes: list[Node[T]] | None = None,
         coroutine: AwaitableCallback | None = None,
-        split_tests: bool = False,
+        *,
+        split_tests: Literal[True],
     ) -> list[Node[BaseValidation]]: ...
 
-    async def create_validation_nodes(
+    def create_validation_nodes(
         self,
         input: Any,
         issues: list[str],
@@ -221,19 +237,27 @@ class BaseWorkflow(WorkflowPort):
         Returns:
             Node: The validation node
         """
-        validation_models = self._create_validation_model(issues)
-        validation_nodes = []
+        base_kwargs = dict(
+            input=input,
+            output=lambda: source_node.output,
+            prompt="""
+                # Task
+                Evaluate the output against each test.
+                
+                # Context
+                ## Input
+                {{ input }}
 
+                ## Output
+                {{ output }}
+            """,
+        )
         if not split_tests:
+            validation_model = self._create_validation_model(issues)
             validation_node = Node[BaseValidation](
                 uuid="validation_node",
                 coroutine=coroutine or self.task,
-                kwargs=dict(
-                    prompt="""
-                    # Task
-                    Evaluate the output against each test.
-                    """,
-                ),
+                kwargs={**base_kwargs, **dict(response_model=validation_model)},
             )
             validation_node.on_after_run = (
                 self.redirect,
@@ -246,26 +270,14 @@ class BaseWorkflow(WorkflowPort):
 
             return validation_node
 
-        for response_model in validation_models:
+        validation_nodes = []
+        for response_model in self._create_validation_model(
+            issues, split_tests=split_tests
+        ):
             validation_node = Node[BaseValidation](
                 uuid="validation_node",
                 coroutine=coroutine or self.task,
-                kwargs=dict(
-                    prompt="""
-                    # Task
-                    Evaluate the output against each test.
-                    
-                    # Context
-                    ## Input
-                    {{ input }}
-
-                    ## Output
-                    {{ output }}
-                    """,
-                    response_model=response_model,
-                    input=input,
-                    output=lambda: source_node.output,
-                ),
+                kwargs={**base_kwargs, **dict(response_model=response_model)},
             )
             validation_node.on_after_run = (
                 self.redirect,
