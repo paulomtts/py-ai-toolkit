@@ -16,6 +16,7 @@ class ModellerPort(ABC):
         self,
         model: Type[T],
         fields: list[tuple[str, Any]],
+        docstring: str | None = None,
     ) -> Type[T]:
         """
         Injects field types into a model.

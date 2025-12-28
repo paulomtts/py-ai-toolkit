@@ -27,10 +27,45 @@ class PydanticAdapter(ModellerPort):
         normalized = re.sub(r"[^a-zA-Z0-9\s]", " ", string).strip()
         return "".join(word.capitalize() for word in normalized.split())
 
+    def _extract_field_kwargs(self, field_info: Any) -> dict[str, Any]:
+        """
+        Extracts all kwargs from a FieldInfo object that can be passed to Field().
+        """
+        deprecated_fields = {"metadata", "metadata_lookup"}
+        kwargs = {}
+        field_dict = vars(field_info) if hasattr(field_info, "__dict__") else {}
+        seen_attrs = set(field_dict.keys())
+        for attr_name, attr_value in field_dict.items():
+            if attr_name.startswith("_") or attr_name in deprecated_fields:
+                continue
+            if attr_value is None or attr_value is PydanticUndefined:
+                continue
+            if not callable(attr_value):
+                kwargs[attr_name] = attr_value
+        for attr_name in dir(field_info):
+            if (
+                attr_name.startswith("_")
+                or attr_name in seen_attrs
+                or attr_name in deprecated_fields
+            ):
+                continue
+            try:
+                attr_value = getattr(field_info, attr_name)
+                if (
+                    not callable(attr_value)
+                    and attr_value is not None
+                    and attr_value is not PydanticUndefined
+                ):
+                    kwargs[attr_name] = attr_value
+            except (AttributeError, TypeError):
+                continue
+        return kwargs
+
     def inject_types(
         self,
         model: Type[T],
         fields: list[tuple[str, Any]],
+        docstring: str | None = None,
     ) -> Type[T]:
         """
         Injects field types into a model.
@@ -38,16 +73,13 @@ class PydanticAdapter(ModellerPort):
         return create_model(
             model.__name__ + "Model",
             __base__=(model,),
-            __doc__=model.__doc__,
+            __doc__=docstring or model.__doc__,
             **{
                 field_name: (
                     field_type,
-                    Field(
-                        description=model.model_fields[field_name].description,
-                        examples=model.model_fields[field_name].examples,
-                    ),
+                    Field(**self._extract_field_kwargs(model.model_fields[field_name])),
                 )
-                for (field_name, field_type) in fields
+                for field_name, field_type in fields
             },  # type: ignore
         )
 

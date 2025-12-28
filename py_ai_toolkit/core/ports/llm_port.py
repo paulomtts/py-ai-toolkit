@@ -39,7 +39,7 @@ class LLMPort(ABC):
         Returns:
             AsyncGenerator[CompletionResponse, None]: The response from the LLM
         """
-        pass
+        yield  # type: ignore
 
     @abstractmethod
     async def asend(

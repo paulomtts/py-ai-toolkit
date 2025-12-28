@@ -15,7 +15,9 @@ class Jinja2Adapter(FormatterPort):
     def __init__(self):
         self.env = Environment()
 
-    def _load_prompt(self, path: str) -> str:
+    def _load_prompt(self, path: str | None = None) -> str:
+        if not path:
+            raise FormatterAdapterError("Path is required")
         with open(path, "r", encoding="utf-8") as file:
             return file.read()
 

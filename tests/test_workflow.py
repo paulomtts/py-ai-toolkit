@@ -1,10 +1,13 @@
 from typing import Literal
 
 import pytest
+from grafo._internal import AwaitableCallback
 from pydantic import BaseModel
 
 from py_ai_toolkit import BaseWorkflow, Node, PyAIToolkit, TreeExecutor
 from py_ai_toolkit.core.domain.errors import BaseError
+from py_ai_toolkit.core.domain.interfaces import LLMConfig
+from py_ai_toolkit.core.domain.models import BaseValidation, ValidationTest
 
 
 class FruitPurchase(BaseModel):
@@ -22,24 +25,41 @@ class MockWorkflowError(BaseError):
     pass
 
 
+async def fruit_purchase(**_) -> FruitPurchase:
+    return FruitPurchase(product="apple", quantity=5)
+
+
+async def fruit_validation_success(**_) -> BaseValidation:
+    return BaseValidation(
+        validations=[
+            ValidationTest(
+                is_valid=True,
+                reasoning="The identified purchase matches the user's request.",
+            )
+        ]
+    )
+
+
+async def fruit_validation_failure(**_) -> BaseValidation:
+    return BaseValidation(
+        validations=[
+            ValidationTest(
+                is_valid=False,
+                reasoning="The identified purchase does not match the user's request.",
+            )
+        ]
+    )
+
+
 class MockWorkflow(BaseWorkflow):
-    def __init__(self, ait: PyAIToolkit):
+    def __init__(self, ait: PyAIToolkit, validation_coroutine: AwaitableCallback):
+        self.validation_coroutine = validation_coroutine
         super().__init__(ait, MockWorkflowError)
-
-    async def fruit_purchase(self, **_) -> FruitPurchase:
-        return FruitPurchase(product="apple", quantity=5)
-
-    async def fruit_validation(self, **_) -> ValidationResult:
-        return ValidationResult(
-            is_valid=True,
-            reason="The identified purchase matches the user's request.",
-            humanized_failure=None,
-        )
 
     async def run(self, message: str) -> FruitPurchase:
         purchase_node = Node[FruitPurchase](
             uuid="purchase_node",
-            coroutine=self.fruit_purchase,
+            coroutine=fruit_purchase,
             kwargs=dict(
                 prompt="{{ message }}",
                 response_model=FruitPurchase,
@@ -47,27 +67,28 @@ class MockWorkflow(BaseWorkflow):
             ),
         )
 
-        validation_node = Node[ValidationResult](
-            uuid="validation_node",
-            coroutine=self.fruit_validation,
-            kwargs=dict(
-                path="./tests/validation.md",
-                response_model=ValidationResult,
-                message=message,
-                purchase=lambda: purchase_node.output,
-            ),
+        validation_node = self.create_validation_node(
+            coroutine=self.validation_coroutine,
+            input=message,
+            output=purchase_node.output,
+            issues=["The identified purchase matches the user's request."],
+            source_node=purchase_node,
         )
 
         await purchase_node.connect(validation_node)
         executor = TreeExecutor(uuid="Test Workflow", roots=[purchase_node])
         await executor.run()
 
-        if (
-            not purchase_node.output
-            or not validation_node.output
-            or not validation_node.output.is_valid
-        ):
+        if not purchase_node.output or not validation_node.output:
             raise ValueError("Purchase validation failed")
+
+        if isinstance(validation_node.output, BaseValidation):
+            is_valid = all(test.is_valid for test in validation_node.output.validations)
+            if self.current_retries > self.max_retries and not is_valid:
+                raise self.ErrorClass(
+                    status_code=400,
+                    message=f"Max retries reached. Validation node output: {validation_node.output.model_dump_json(indent=4)}",
+                )
 
         print(purchase_node.output.model_dump_json(indent=4))
         print(validation_node.output.model_dump_json(indent=4))
@@ -76,13 +97,21 @@ class MockWorkflow(BaseWorkflow):
 
 
 @pytest.mark.asyncio
-async def test_mock_workflow():
-    ait = PyAIToolkit("qwen3:8b")
-    workflow = MockWorkflow(ait)
+async def test_workflow_success():
+    ait = PyAIToolkit(LLMConfig(model="qwen3:8b"))
+    workflow = MockWorkflow(ait, fruit_validation_success)
     result = await workflow.run("I want to buy 5 apples")
     assert isinstance(result, FruitPurchase)
     assert result.product == "apple"
     assert result.quantity == 5
+
+
+@pytest.mark.asyncio
+async def test_workflow_failure():
+    ait = PyAIToolkit(LLMConfig(model="qwen3:8b"))
+    workflow = MockWorkflow(ait, fruit_validation_failure)
+    with pytest.raises(MockWorkflowError):
+        await workflow.run("I want to buy 5 bananas")
 
 
 if __name__ == "__main__":

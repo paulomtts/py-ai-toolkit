@@ -1,10 +1,11 @@
 import os
+import random
 from typing import Any, AsyncGenerator, Type, TypeVar
 
 from pydantic import BaseModel
 from toon_python import encode
 
-from py_ai_toolkit.core.domain.interfaces import CompletionResponse
+from py_ai_toolkit.core.domain.interfaces import CompletionResponse, LLMConfig
 from py_ai_toolkit.factories import (
     create_llm_client,
     create_model_handler,
@@ -23,10 +24,8 @@ class PyAIToolkit:
 
     def __init__(
         self,
-        model: str | None = None,
-        embedding_model: str | None = None,
-        api_key: str | None = None,
-        base_url: str | None = None,
+        main_model_config: LLMConfig,
+        alternative_models_configs: list[LLMConfig] | None = None,
     ):
         """
         Initialize AIT with LLM client and prompt formatter.
@@ -36,19 +35,19 @@ class PyAIToolkit:
             embedding_model (str): The model to use for embeddings
             api_key (str): The API key for authentication
         """
-        if not model:
-            model = os.getenv("LLM_MODEL", "")
-        if not embedding_model:
-            embedding_model = os.getenv("EMBEDDING_MODEL", "")
-        if not api_key:
-            api_key = os.getenv("LLM_API_KEY", "")
-
         self.llm_client = create_llm_client(
-            model=model,
-            embedding_model=embedding_model,
-            api_key=api_key,
-            base_url=base_url,
+            model=main_model_config.model or os.getenv("LLM_MODEL", ""),
+            embedding_model=main_model_config.embedding_model
+            or os.getenv("EMBEDDING_MODEL", ""),
+            api_key=main_model_config.api_key or os.getenv("LLM_API_KEY", ""),
+            base_url=main_model_config.base_url or os.getenv("LLM_BASE_URL", ""),
         )
+        self.alternative_llm_clients = []
+        if alternative_models_configs:
+            self.alternative_llm_clients = [
+                create_llm_client(**config.model_dump())
+                for config in alternative_models_configs
+            ]
         self.prompt_formatter = create_prompt_formatter()
         self.model_handler = create_model_handler()
 
@@ -56,6 +55,7 @@ class PyAIToolkit:
         self,
         model: Type[T],
         fields: list[tuple[str, Any]],
+        docstring: str | None = None,
     ) -> Type[T]:
         """
         Injects field types into a response model.
@@ -70,7 +70,7 @@ class PyAIToolkit:
         Example:
             >>> ait.inject_types(Fruit, [("name", Literal[tuple(available_fruits)])])
         """
-        return self.model_handler.inject_types(model, fields)
+        return self.model_handler.inject_types(model, fields, docstring)
 
     def reduce_model_schema(
         self, model: Type[T], include_description: bool = True
@@ -166,8 +166,11 @@ class PyAIToolkit:
         Returns:
             CompletionResponse[T]: The response from the LLM with structured content
         """
+        client = self.llm_client
+        if self.alternative_llm_clients:
+            client = random.choice(self.alternative_llm_clients)
         messages = self._prepare_messages(path, prompt, **kwargs)
-        response = await self.llm_client.asend(
+        response = await client.asend(
             messages=messages,
             response_model=response_model,
         )

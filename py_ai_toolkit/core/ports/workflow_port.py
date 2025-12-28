@@ -4,9 +4,11 @@ from typing import Any, Type, TypeVar, Union
 from grafo import Node
 from pydantic import BaseModel
 
+from py_ai_toolkit.core.domain.models import BaseValidation
+
 T = TypeVar("T", bound=BaseModel)
 S = TypeVar("S", bound=BaseModel)
-V = TypeVar("V", bound=BaseModel)
+V = TypeVar("V", bound=BaseValidation)
 
 
 class WorkflowPort(ABC):
@@ -16,18 +18,23 @@ class WorkflowPort(ABC):
 
     @abstractmethod
     async def task(
-        self, path: str, response_model: Type[S] | None = None, **kwargs: Any
-    ) -> Union[str, S]:
+        self,
+        path: str | None = None,
+        prompt: str | None = None,
+        response_model: Type[S] | None = None,
+        **kwargs: Any,
+    ) -> Union[str, bool, S]:
         """
         Execute a task.
 
         Args:
             path (str): The path to the prompt template file
+            prompt (str | None): The prompt to use for the task
             response_model (Type[S] | None): The response model to return the response as
             **kwargs: Additional arguments to pass to the prompt formatter
 
         Returns:
-            Union[str, S]: The response from the LLM with text content
+            Union[str, bool, S]: The response from the LLM with text content or a boolean indicating if the output is valid
         """
         pass
 
