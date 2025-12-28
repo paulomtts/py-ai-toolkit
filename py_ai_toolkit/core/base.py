@@ -148,12 +148,22 @@ class BaseWorkflow(WorkflowPort):
                 for target_node in target_nodes:
                     await validation_node.connect(target_node)
             return
-        source_node.kwargs["eval"] = lambda: str(
+        failed_tests_reasonings = "\n".join(
+            [
+                test.reasoning
+                for test in validation_output.validations
+                if not test.is_valid
+            ]
+        )
+        eval_property_name = (
+            source_node.uuid.strip().replace(" ", "_").lower() + "_eval"
+        )
+        source_node.kwargs[eval_property_name] = lambda: str(
             source_output.model_dump_json(indent=2)
-        ) + str(getattr(validation_output, "reasoning", None))
+        ) + str(failed_tests_reasonings)
         await validation_node.connect(source_node)
 
-    def _create_validation_model(self, issues: list[str]) -> Type[BaseValidation]:
+    def _create_validation_model(self, issues: list[str]) -> list[Type[ValidationTest]]:
         """
         Creates a validation model for a list of issues.
 
@@ -161,23 +171,20 @@ class BaseWorkflow(WorkflowPort):
             issues (list[str]): The issues to validate against
 
         Returns:
-            Type[ValidationModel]: The validation model
+            list[Type[ValidationTest]]: The validation models
         """
-        issue_models = [
+        return [
             self.ai_toolkit.inject_types(ValidationTest, [], issue) for issue in issues
         ]
-        return self.ai_toolkit.inject_types(
-            BaseValidation, [("validations", list[Union[*issue_models]])]
-        )
 
-    def create_validation_node(
+    async def create_validation_nodes(
         self,
         input: Any,
         issues: list[str],
         source_node: Node[Any],
         target_nodes: list[Node[T]] | None = None,
         coroutine: AwaitableCallback | None = None,
-    ) -> Node[BaseValidation]:
+    ) -> list[Node[BaseValidation]]:
         """
         Creates a validation node for a list of issues and setups it's redirection callback.
         NOTE: if you need extra functionality, you can override the `on_after_run` callback.
@@ -191,36 +198,42 @@ class BaseWorkflow(WorkflowPort):
         Returns:
             Node: The validation node
         """
-        validation_model = self._create_validation_model(issues)
-        validation_node = Node[BaseValidation](
-            uuid="validation_node",
-            coroutine=coroutine or self.task,
-            kwargs=dict(
-                prompt="""
-                # Task
-                Evaluate the output against each test.
-                
-                # Context
-                ## Input
-                {{ input }}
+        validation_models = self._create_validation_model(issues)
+        validation_nodes = []
 
-                ## Output
-                {{ output }}
-                """,
-                response_model=validation_model,
-                input=input,
-                output=lambda: source_node.output,
-            ),
-        )
-        validation_node.on_after_run = (
-            self.redirect,
-            dict(
-                source_node=source_node,
-                validation_node=validation_node,
-                target_nodes=target_nodes,
-            ),
-        )
-        return validation_node
+        # TODO: add support for splitting tests into multiple nodes OR use a single node with a list of tests
+
+        for response_model in validation_models:
+            validation_node = Node[BaseValidation](
+                uuid="validation_node",
+                coroutine=coroutine or self.task,
+                kwargs=dict(
+                    prompt="""
+                    # Task
+                    Evaluate the output against each test.
+                    
+                    # Context
+                    ## Input
+                    {{ input }}
+
+                    ## Output
+                    {{ output }}
+                    """,
+                    response_model=response_model,
+                    input=input,
+                    output=lambda: source_node.output,
+                ),
+            )
+            validation_node.on_after_run = (
+                self.redirect,
+                dict(
+                    source_node=source_node,
+                    validation_node=validation_node,
+                    target_nodes=target_nodes,
+                ),
+            )
+            validation_nodes.append(validation_node)
+        return validation_nodes
 
     async def run(self, *_: Any, **__: Any) -> Any:
         """
