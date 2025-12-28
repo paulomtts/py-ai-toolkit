@@ -64,6 +64,7 @@ class WorkflowPort(ABC):
         source_node: Node[Any],
         target_nodes: list[Node[T]] | None = None,
         coroutine: AwaitableCallback | None = None,
+        split_tests: bool = False,
     ) -> list[Node[BaseValidation]]:
         """
         Create a validation node.

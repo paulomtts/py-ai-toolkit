@@ -184,6 +184,7 @@ class BaseWorkflow(WorkflowPort):
         source_node: Node[Any],
         target_nodes: list[Node[T]] | None = None,
         coroutine: AwaitableCallback | None = None,
+        split_tests: bool = False,
     ) -> list[Node[BaseValidation]]:
         """
         Creates a validation node for a list of issues and setups it's redirection callback.
@@ -195,13 +196,34 @@ class BaseWorkflow(WorkflowPort):
             source_node (Node[Any]): The source node
             target_nodes (list[Node[T]] | None): The target nodes
             coroutine (AwaitableCallback | None): The coroutine to use for the validation node. Defaults to the `self.task(...)` method.
+            split_tests (bool): Whether to split the tests into multiple nodes. Defaults to False.
         Returns:
             Node: The validation node
         """
         validation_models = self._create_validation_model(issues)
         validation_nodes = []
 
-        # TODO: add support for splitting tests into multiple nodes OR use a single node with a list of tests
+        if not split_tests:
+            validation_node = Node[BaseValidation](
+                uuid="validation_node",
+                coroutine=coroutine or self.task,
+                kwargs=dict(
+                    prompt="""
+                    # Task
+                    Evaluate the output against each test.
+                    """,
+                ),
+            )
+            validation_node.on_after_run = (
+                self.redirect,
+                dict(
+                    source_node=source_node,
+                    validation_node=validation_node,
+                    target_nodes=target_nodes,
+                ),
+            )
+            validation_nodes.append(validation_node)
+            return validation_nodes
 
         for response_model in validation_models:
             validation_node = Node[BaseValidation](
