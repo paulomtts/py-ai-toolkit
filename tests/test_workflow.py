@@ -82,13 +82,11 @@ class MockWorkflow(BaseWorkflow):
         if not purchase_node.output or not validation_node.output:
             raise ValueError("Purchase validation failed")
 
-        if isinstance(validation_node.output, BaseValidation):
-            is_valid = all(test.is_valid for test in validation_node.output.validations)
-            if self.current_retries > self.max_retries and not is_valid:
-                raise self.ErrorClass(
-                    status_code=400,
-                    message=f"Max retries reached. Validation node output: {validation_node.output.model_dump_json(indent=4)}",
-                )
+        if not validation_node.output.valid:
+            raise self.ErrorClass(
+                status_code=400,
+                message=f"Max retries reached. Validation node output: {validation_node.output.model_dump_json(indent=4)}",
+            )
 
         print(purchase_node.output.model_dump_json(indent=4))
         print(validation_node.output.model_dump_json(indent=4))

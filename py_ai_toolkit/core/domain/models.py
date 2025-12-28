@@ -10,3 +10,7 @@ class ValidationTest(BaseModel):
 
 class BaseValidation(BaseModel):
     validations: list[ValidationTest] = Field(description="A list of tests")
+
+    @property
+    def valid(self) -> bool:
+        return all(test.is_valid for test in self.validations)

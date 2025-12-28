@@ -70,17 +70,13 @@ response = ait.asend(response_model=Purchase, path=path, message=message)
 
 ### Simple workflow:
 ```python
-from py_ai_toolkit import AIT, BaseWorkflow, Node
+from py_ai_toolkit import AIT, BaseWorkflow, BaseValidation, Node, TreeExecutor
 from pydantic import BaseModel
+from typing import Literal
 
 class Purchase(BaseModel):
     product: str
     quantity: int
-
-class Eval(BaseModel):
-    is_valid: bool
-    reasoning: str
-    humanized_failure_reason: str | None
 
 ait = AIT("gpt-5")
 prompts_path = "./"
@@ -96,37 +92,30 @@ class PurchaseWorkflow(BaseWorkflow):
 
     async def run(self, message) -> Purchase:
         purchase_node = Node[FruitModel](
-            uuid="fruit purchase node"
-            coroutine=self.task
+            uuid="fruit purchase node",
+            coroutine=self.task,
             kwargs=dict(
-                path=f"{prompts_path}/purchase.md"
-                response_model=FruitModel
-                message=message
+                path=f"{prompts_path}/purchase.md",
+                response_model=FruitModel,
+                message=message,
             )
         )
-        validation_node = Node[Eval](
-            uuid="purchase eval node"
-            coroutine=self.task
-            kwargs=dict(
-                path=f"{prompts_path}/eval.md"
-                response_model=Eval
-                message=message
-                purchase=lambda: purchase_node.output
-            )
+        validation_node = self.create_validation_node(
+            input=message,
+            output=purchase_node.output,
+            issues=["The identified purchase matches the user's request."],
+            source_node=purchase_node,
         )
-        eval_node.on_after_run = (
-            self.redirect,
-            dict(
-                source_node=purchase_node
-                validation_node=validation_node
-            )
-        )
+
         await purchase_node.connect(validation_node)
         executor = TreeExecutor(uuid="Purchase Workflow", roots=[purchase_node])
         await executor.run()
 
-        if not purchase_node.output or not validation_node.output.is_valid:
-            raise ValueError("Purchase failed.")
+        if not purchase_node.output or not validation_node.output:
+            raise ValueError("Purchase validation failed.")
+
+        if not validation_node.output.valid:
+            raise ValueError("Purchase failed validation.")
 
         return purchase_node.output
 ```

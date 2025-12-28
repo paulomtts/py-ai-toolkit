@@ -78,7 +78,7 @@ class BaseWorkflow(WorkflowPort):
             **kwargs,
         )
         if isinstance(response.content, BaseValidation):
-            return self._get_validation_output(response.content)
+            return response.content.valid
         return response.content
 
     def _ensure_source_node_output(self, node: Node[T], detail: str) -> T:
@@ -102,9 +102,6 @@ class BaseWorkflow(WorkflowPort):
                 message=detail,
             )
         return node.output
-
-    def _get_validation_output(self, result: BaseValidation) -> bool:
-        return all(test.is_valid for test in result.validations)
 
     async def _disconnect_children(self, node: Node[V]):
         """
@@ -133,9 +130,8 @@ class BaseWorkflow(WorkflowPort):
         validation_output = self._ensure_validation_node_output(
             validation_node, "Validation node output is None"
         )
-        is_valid = self._get_validation_output(validation_output)
         self.current_retries += 1
-        if self.current_retries > self.max_retries and not is_valid:
+        if self.current_retries > self.max_retries and not validation_output.valid:
             await self._disconnect_children(validation_node)
             raise self.ErrorClass(
                 status_code=HTTPStatus.BAD_REQUEST.value,
@@ -149,7 +145,7 @@ class BaseWorkflow(WorkflowPort):
             )
         await self._disconnect_children(validation_node)
 
-        if is_valid:
+        if validation_output.valid:
             if target_nodes:
                 for target_node in target_nodes:
                     await validation_node.connect(target_node)
