@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Type, TypeVar, Union
 
 from grafo import Node
+from grafo._internal import AwaitableCallback
 from pydantic import BaseModel
 
 from py_ai_toolkit.core.domain.models import BaseValidation
@@ -23,7 +24,7 @@ class WorkflowPort(ABC):
         prompt: str | None = None,
         response_model: Type[S] | None = None,
         **kwargs: Any,
-    ) -> Union[str, bool, S]:
+    ) -> Union[str, S]:
         """
         Execute a task.
 
@@ -52,6 +53,20 @@ class WorkflowPort(ABC):
             source_node (Node[S]): The source node.
             validation_node (Node[V]): The validation node.
             target_nodes (list[Node[T]], optional): The target nodes. Defaults to None.
+        """
+        pass
+
+    @abstractmethod
+    def create_validation_node(
+        self,
+        input: Any,
+        issues: list[str],
+        source_node: Node[Any],
+        target_nodes: list[Node[T]] | None = None,
+        coroutine: AwaitableCallback | None = None,
+    ) -> Node[BaseValidation]:
+        """
+        Create a validation node.
         """
         pass
 

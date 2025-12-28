@@ -45,7 +45,7 @@ class BaseWorkflow(WorkflowPort):
         prompt: str | None = None,
         response_model: Type[S] | None = None,
         **kwargs: Any,
-    ) -> Union[str, bool, S]:
+    ) -> Union[str, S]:
         """
         Execute a task.
 
@@ -77,8 +77,6 @@ class BaseWorkflow(WorkflowPort):
             **base_kwargs,
             **kwargs,
         )
-        if isinstance(response.content, BaseValidation):
-            return response.content.valid
         return response.content
 
     def _ensure_source_node_output(self, node: Node[T], detail: str) -> T:
@@ -185,8 +183,7 @@ class BaseWorkflow(WorkflowPort):
         NOTE: if you need extra functionality, you can override the `on_after_run` callback.
 
         Args:
-            input (Any): The input to validate against
-            output (Any): The output to validate against
+            input (Any): The input used to create the source node output
             issues (list[str]): The issues to validate against
             source_node (Node[Any]): The source node
             target_nodes (list[Node[T]] | None): The target nodes
