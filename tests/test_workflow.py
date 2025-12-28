@@ -70,7 +70,6 @@ class MockWorkflow(BaseWorkflow):
         validation_node = self.create_validation_node(
             coroutine=self.validation_coroutine,
             input=message,
-            output=purchase_node.output,
             issues=["The identified purchase matches the user's request."],
             source_node=purchase_node,
         )

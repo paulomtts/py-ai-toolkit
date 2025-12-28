@@ -175,7 +175,6 @@ class BaseWorkflow(WorkflowPort):
     def create_validation_node(
         self,
         input: Any,
-        output: Any,
         issues: list[str],
         source_node: Node[Any],
         target_nodes: list[Node[T]] | None = None,
@@ -213,7 +212,7 @@ class BaseWorkflow(WorkflowPort):
                 """,
                 response_model=validation_model,
                 input=input,
-                output=output,
+                output=lambda: source_node.output,
             ),
         )
         validation_node.on_after_run = (
