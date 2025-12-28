@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Type, TypeVar, Union
+from typing import Any, Type, TypeVar, Union, overload
 
 from grafo import Node
 from grafo._internal import AwaitableCallback
@@ -177,6 +177,17 @@ class BaseWorkflow(WorkflowPort):
             self.ai_toolkit.inject_types(ValidationTest, [], issue) for issue in issues
         ]
 
+    @overload
+    async def create_validation_nodes(
+        self,
+        input: Any,
+        issues: list[str],
+        source_node: Node[Any],
+        target_nodes: list[Node[T]] | None = None,
+        coroutine: AwaitableCallback | None = None,
+    ) -> Node[BaseValidation]: ...
+
+    @overload
     async def create_validation_nodes(
         self,
         input: Any,
@@ -185,7 +196,17 @@ class BaseWorkflow(WorkflowPort):
         target_nodes: list[Node[T]] | None = None,
         coroutine: AwaitableCallback | None = None,
         split_tests: bool = False,
-    ) -> list[Node[BaseValidation]]:
+    ) -> list[Node[BaseValidation]]: ...
+
+    async def create_validation_nodes(
+        self,
+        input: Any,
+        issues: list[str],
+        source_node: Node[Any],
+        target_nodes: list[Node[T]] | None = None,
+        coroutine: AwaitableCallback | None = None,
+        split_tests: bool = False,
+    ) -> Node[BaseValidation] | list[Node[BaseValidation]]:
         """
         Creates a validation node for a list of issues and setups it's redirection callback.
         NOTE: if you need extra functionality, you can override the `on_after_run` callback.
@@ -222,8 +243,8 @@ class BaseWorkflow(WorkflowPort):
                     target_nodes=target_nodes,
                 ),
             )
-            validation_nodes.append(validation_node)
-            return validation_nodes
+
+            return validation_node
 
         for response_model in validation_models:
             validation_node = Node[BaseValidation](
