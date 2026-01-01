@@ -1,7 +1,8 @@
 from http import HTTPStatus
 from typing import Any, Literal, Type, TypeVar, Union, overload
+from uuid import uuid4
 
-from grafo import Node
+from grafo import Node, TreeExecutor
 from grafo._internal import AwaitableCallback
 from pydantic import BaseModel
 
@@ -211,7 +212,7 @@ class BaseWorkflow(WorkflowPort):
         target_nodes: list[Node[T]] | None = None,
         coroutine: AwaitableCallback | None = None,
         *,
-        split_tests: Literal[True],
+        split_tests: bool,
     ) -> list[Node[BaseValidation]]: ...
 
     def create_validation_nodes(
@@ -255,7 +256,7 @@ class BaseWorkflow(WorkflowPort):
         if not split_tests:
             validation_model = self._create_validation_model(issues)
             validation_node = Node[BaseValidation](
-                uuid="validation_node",
+                uuid=uuid4().hex + "_validation_node",
                 coroutine=coroutine or self.task,
                 kwargs={**base_kwargs, **dict(response_model=validation_model)},
             )
@@ -271,11 +272,11 @@ class BaseWorkflow(WorkflowPort):
             return validation_node
 
         validation_nodes = []
-        for response_model in self._create_validation_model(
-            issues, split_tests=split_tests
+        for index, response_model in enumerate(
+            self._create_validation_model(issues, split_tests=split_tests)
         ):
             validation_node = Node[BaseValidation](
-                uuid="validation_node",
+                uuid=uuid4().hex + f"_issue{index}_validation_node",
                 coroutine=coroutine or self.task,
                 kwargs={**base_kwargs, **dict(response_model=response_model)},
             )
@@ -289,6 +290,64 @@ class BaseWorkflow(WorkflowPort):
             )
             validation_nodes.append(validation_node)
         return validation_nodes
+
+    def _create_task_node(
+        self,
+        coroutine: AwaitableCallback | None = None,
+        prompt: str | None = None,
+        path: str | None = None,
+        response_model: Type[S] | None = None,
+        **kwargs: Any,
+    ) -> Node[Any]:
+        """
+        Creates a task node with a prompt and path.
+        """
+        return Node[Any](
+            uuid=uuid4().hex + "_task_node",
+            coroutine=coroutine or self.task,
+            kwargs=dict(
+                prompt=prompt, path=path, response_model=response_model, **kwargs
+            ),
+        )
+
+    async def create_task_subtree(
+        self,
+        tree_uuid: str,
+        task_response_model: Type[S],
+        task_kwargs: dict[str, Any],
+        validation_issues: list[str],
+        validation_split_tests: bool = False,
+    ) -> TreeExecutor[Type[S] | BaseValidation]:
+        """
+        Convenience method to create a task subtree that performs the task and validates the output.
+
+        Args:
+            tree_uuid: The UUID of the task subtree.
+            task_response_model: The type of the task output.
+            task_kwargs: The kwargs to pass to the task node.
+            validation_issues: The issues to pass to the validation node.
+            validation_split_tests: Whether to split the tests into multiple nodes.
+
+        Returns:
+            TreeExecutor[Type[S] | BaseValidation]: The task subtree.
+        """
+        task_node = self._create_task_node(
+            response_model=task_response_model,
+            **task_kwargs,
+        )
+        validation_node = self.create_validation_nodes(
+            input=lambda: task_node.output,
+            issues=validation_issues,
+            source_node=task_node,
+            split_tests=validation_split_tests,
+        )
+        if isinstance(validation_node, list):
+            for node in validation_node:
+                await task_node.connect(node)
+        else:
+            await task_node.connect(validation_node)
+
+        return TreeExecutor[Type[S] | BaseValidation](uuid=tree_uuid, roots=[task_node])
 
     async def run(self, *_: Any, **__: Any) -> Any:
         """

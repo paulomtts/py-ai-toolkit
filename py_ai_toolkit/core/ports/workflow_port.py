@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Type, TypeVar, Union
 
-from grafo import Node
+from grafo import Node, TreeExecutor
 from grafo._internal import AwaitableCallback
 from pydantic import BaseModel
 
@@ -68,6 +68,35 @@ class WorkflowPort(ABC):
     ) -> Node[BaseValidation] | list[Node[BaseValidation]]:
         """
         Create a validation node.
+        """
+        pass
+
+    @abstractmethod
+    def create_task_node(
+        self,
+        uuid: str,
+        coroutine: AwaitableCallback | None = None,
+        prompt: str | None = None,
+        path: str | None = None,
+        response_model: Type[S] | None = None,
+        **kwargs: Any,
+    ) -> Node[Any]:
+        """
+        Create a task node.
+        """
+        pass
+
+    @abstractmethod
+    async def create_task_subtree(
+        self,
+        tree_uuid: str,
+        task_response_model: Type[S],
+        task_kwargs: dict[str, Any],
+        validation_issues: list[str],
+        validation_split_tests: bool = False,
+    ) -> TreeExecutor:
+        """
+        Create a task subtree.
         """
         pass
 
