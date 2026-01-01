@@ -72,9 +72,8 @@ class WorkflowPort(ABC):
         pass
 
     @abstractmethod
-    def create_task_node(
+    def _create_task_node(
         self,
-        uuid: str,
         coroutine: AwaitableCallback | None = None,
         prompt: str | None = None,
         path: str | None = None,
