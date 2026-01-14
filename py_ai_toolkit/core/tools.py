@@ -281,11 +281,9 @@ class PyAIToolkit:
         """
         executor, task_node, validation_nodes = await self._create_task_subtree(
             response_model=response_model,
-            kwargs=dict(
-                prompt=prompt,
-                path=path,
-                **kwargs,
-            ),
+            kwargs=kwargs,
+            prompt=prompt,
+            path=path,
             issues=issues,
             split=split,
             on_before_run=on_before_run,
