@@ -1,4 +1,4 @@
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 from grafo import Chunk, Node, TreeExecutor
 
