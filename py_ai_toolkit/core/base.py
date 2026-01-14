@@ -304,7 +304,7 @@ class BaseWorkflow(WorkflowPort):
         """
         Creates a task node with a prompt and path.
         """
-        return Node[Type[S]](
+        return Node[response_model](
             uuid=uuid4().hex + "_task_node",
             coroutine=coroutine or self.task,
             on_before_run=on_before_run,
