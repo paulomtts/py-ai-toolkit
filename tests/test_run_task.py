@@ -6,10 +6,10 @@ from pydantic import BaseModel
 
 from py_ai_toolkit import PyAIToolkit
 from py_ai_toolkit.core.domain.interfaces import (
-    KAheadConfig,
+    KAheadVotingValidationConfig,
     LLMConfig,
-    SingleConfig,
-    ThresholdConfig,
+    SingleShotValidationConfig,
+    ThresholdVotingValidationConfig,
 )
 
 logger = logging.getLogger("grafo")
@@ -50,7 +50,7 @@ async def test_run_task_with_single_validations():
         """.strip(),
         response_model=FruitPurchase,
         kwargs=dict(message="I want to buy 5 apples."),
-        config=SingleConfig(
+        config=SingleShotValidationConfig(
             issues=["The identified purchase matches the user's request."],
         ),
         echo=True,
@@ -70,7 +70,7 @@ async def test_run_task_with_threshold_validations():
         """.strip(),
         response_model=FruitPurchase,
         kwargs=dict(message="I want to buy 5 apples."),
-        config=ThresholdConfig(
+        config=ThresholdVotingValidationConfig(
             issues=["The identified purchase matches the user's request."],
         ),
         echo=True,
@@ -90,7 +90,7 @@ async def test_run_task_with_kahead_validations():
         """.strip(),
         response_model=FruitPurchase,
         kwargs=dict(message="I want to buy 5 apples."),
-        config=KAheadConfig(
+        config=KAheadVotingValidationConfig(
             issues=["The identified purchase matches the user's request."],
         ),
         echo=True,

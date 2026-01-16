@@ -9,7 +9,7 @@ from py_ai_toolkit.core.domain.errors import WorkflowError
 from py_ai_toolkit.core.domain.interfaces import (
     CompletionResponse,
     LLMConfig,
-    SingleConfig,
+    SingleShotValidationConfig,
     ValidationConfig,
 )
 from py_ai_toolkit.factories import (
@@ -198,7 +198,7 @@ class PyAIToolkit:
         template: str,
         response_model: Type[T],
         kwargs: dict[str, Any],
-        config: ValidationConfig = SingleConfig(),
+        config: ValidationConfig = SingleShotValidationConfig(),
         echo: bool = False,
     ) -> T:
         """
@@ -207,7 +207,7 @@ class PyAIToolkit:
             template: The template to pass to the task node.
             response_model: The type of the task output.
             kwargs: The kwargs to pass to the task node.
-            config: The config to pass to the task node.
+            config: The validation configurations for the tree
             echo: Whether to echo the output.
 
         Returns:

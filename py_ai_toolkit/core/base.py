@@ -7,9 +7,9 @@ from pydantic import BaseModel
 from py_ai_toolkit.core.domain.errors import WorkflowError
 from py_ai_toolkit.core.domain.interfaces import (
     IssueTreeExecutor,
-    KAheadConfig,
-    SingleConfig,
-    ThresholdConfig,
+    KAheadVotingValidationConfig,
+    SingleShotValidationConfig,
+    ThresholdVotingValidationConfig,
     ValidationConfig,
 )
 from py_ai_toolkit.core.domain.models import BaseIssue
@@ -54,6 +54,7 @@ class BaseWorkflow:
         Args:
             template (str | None): A path to a prompt template file or a prompt string
             response_model (Type[S] | None): A response model to return the response as
+            echo (bool): Whether to echo the output
             **kwargs: Additional arguments to pass to the prompt formatter
 
         Returns:
@@ -90,6 +91,7 @@ class BaseWorkflow:
             template (str): The template to use for the task node
             uuid (str | None): The UUID of the task node. Defaults to a <random UUID>_task_node.
             response_model (Type[S] | None): The response model to return the response as
+            echo (bool): Whether to echo the output
             **kwargs: Additional arguments to pass to the task node.
 
         Returns:
@@ -211,6 +213,8 @@ class BaseWorkflow:
             task_node (Node[Any]): The task node
             config (ValidationConfig): Configuration for the issue
             executor (IssueTreeExecutor[V] | None): The executor for the issue
+            echo (bool): Whether to echo the output
+
         Returns:
             bool: Whether the issue passed
         """
@@ -228,7 +232,7 @@ class BaseWorkflow:
                 uuid=f"Issue: {issue}",
                 roots=issue_nodes,
             )
-        result = await executor.run_validation_round()
+        result = await executor.run_validation_round(echo=echo)
         self.failure_reasonings[issue] = (
             executor.failure_reasonings
         )  # ? NOTE: temporary, until we have a way to consolidate failure reasonings
@@ -236,11 +240,12 @@ class BaseWorkflow:
         ############################
         # TODO: consolidate failure reasonings
         if result is False and (
-            isinstance(config, ThresholdConfig) or isinstance(config, KAheadConfig)
+            isinstance(config, ThresholdVotingValidationConfig)
+            or isinstance(config, KAheadVotingValidationConfig)
         ):
             pass
         ############################
-        if isinstance(config, KAheadConfig) and result is None:
+        if isinstance(config, KAheadVotingValidationConfig) and result is None:
             return await self._run_issue(
                 issue=issue,
                 task_node=task_node,
@@ -261,6 +266,8 @@ class BaseWorkflow:
         Args:
             task_node (Node[Any]): The task node
             config (ValidationConfig): Configuration for the validation
+            echo (bool): Whether to echo the output
+
         Returns:
             bool: Whether the issues passed
         """
@@ -289,7 +296,7 @@ class BaseWorkflow:
         template: str,
         response_model: Type[S],
         kwargs: dict[str, Any],
-        config: ValidationConfig = SingleConfig(),
+        config: ValidationConfig = SingleShotValidationConfig(),
         echo: bool = False,
     ) -> TreeExecutor[S | V]:
         """
@@ -300,12 +307,15 @@ class BaseWorkflow:
             response_model (Type[S]): The response model to return the response as
             kwargs (dict[str, Any]): The kwargs to pass to the task node
             config (ValidationConfig): Configuration for the validation
+            echo (bool): Whether to echo the output
+
         Returns:
             TreeExecutor[S | V]: The task executor
         """
         task_node: Node[S] = self._create_task_node(
             template=template,
             response_model=response_model,
+            echo=echo,
             **kwargs,
         )
         if config.issues:
@@ -342,7 +352,7 @@ class BaseWorkflow:
         template: str,
         response_model: Type[S],
         kwargs: dict[str, Any],
-        config: ValidationConfig = SingleConfig(),
+        config: ValidationConfig = SingleShotValidationConfig(),
     ) -> Node[S]:
         """
         Convenience method for creating a node that contains a subtree that runs a task and validates the output.
