@@ -71,7 +71,7 @@ def test_prepare_messages_renders_prompt_template_with_kwargs(
     demo_list = [DemoModel(a=2), DemoModel(a=3)]
 
     messages = ait._prepare_messages(
-        prompt="{{ message }}; S={{ single }}; M={{ many }}",
+        template="{{ message }}; S={{ single }}; M={{ many }}",
         message="MY_MESSAGE",
         single=demo,
         many=demo_list,
@@ -105,7 +105,7 @@ def test_prepare_messages_renders_prompt_with_encoded_kwargs(
     )
 
     messages = ait._prepare_messages(
-        path=str(template_path),
+        template=str(template_path),
         single=demo,
         many=demo_list,
         empty=[],

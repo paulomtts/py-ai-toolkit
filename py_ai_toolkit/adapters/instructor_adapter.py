@@ -6,7 +6,7 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from py_ai_toolkit.core.domain.errors import LLMAdapterError
-from py_ai_toolkit.core.domain.interfaces import CompletionResponse, T
+from py_ai_toolkit.core.domain.interfaces import CompletionResponse, S
 from py_ai_toolkit.core.ports import LLMPort
 
 
@@ -103,8 +103,8 @@ class InstructorAdapter(LLMPort):
     async def asend(
         self,
         messages: list[dict[str, str]],
-        response_model: Type[T],
-    ) -> CompletionResponse[T]:
+        response_model: Type[S],
+    ) -> CompletionResponse[S]:
         """
         Sends a message to the LLM asynchronously and returns a structured response.
 

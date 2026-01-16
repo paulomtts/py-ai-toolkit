@@ -1,28 +1,24 @@
 import os
 import random
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Optional, Type, TypeVar
-from uuid import uuid4
+from typing import Any, AsyncGenerator, Type, TypeVar
 
-from grafo import Node, TreeExecutor
-from grafo._internal import AwaitableCallback
 from pydantic import BaseModel
 from toon_python import encode
 
-from py_ai_toolkit.core.domain.errors import BaseError
-from py_ai_toolkit.core.domain.interfaces import CompletionResponse, LLMConfig
-from py_ai_toolkit.core.domain.models import BaseValidation
-from py_ai_toolkit.core.utils import logger
+from py_ai_toolkit.core.domain.errors import WorkflowError
+from py_ai_toolkit.core.domain.interfaces import (
+    CompletionResponse,
+    LLMConfig,
+    SingleShotValidationConfig,
+    ValidationConfig,
+)
 from py_ai_toolkit.factories import (
     create_llm_client,
     create_model_handler,
     create_prompt_formatter,
 )
 
-if TYPE_CHECKING:
-    from py_ai_toolkit.core.base import BaseWorkflow
-
 T = TypeVar("T", bound=BaseModel)
-S = TypeVar("S", bound=BaseModel)
 
 
 class PyAIToolkit:
@@ -87,24 +83,38 @@ class PyAIToolkit:
         """
         return self.model_handler.reduce_model_schema(model, include_description)
 
-    def _prepare_messages(
-        self, path: str | None = None, prompt: str | None = None, **kwargs: Any
-    ) -> list:
+    def _prepare_messages(self, template: str | None = None, **kwargs: Any) -> list:
+        try:
+            is_path = os.path.exists(template)
+        except Exception:
+            is_path = False
+
         for key, value in kwargs.items():
             if isinstance(value, BaseModel):
                 kwargs[key] = encode(value.model_dump_json())
             elif (
                 isinstance(value, list)
                 and len(value) > 0
-                and isinstance(value[0], BaseModel)
-                and all(isinstance(item, type(value[0])) for item in value)
+                and all(issubclass(type(item), BaseModel) for item in value)
             ):
                 kwargs[key] = encode([item.model_dump_json() for item in value])
+
         final_prompt = self.prompt_formatter.render(
-            path=path,
-            prompt=prompt,
+            path=template if is_path else None,
+            prompt=template if not is_path else None,
             input=kwargs,
         )
+
+        eval = kwargs.get("__evaluations__", None)
+        if eval:
+            final_prompt += f"""
+                # Previous Evaluations
+                You have attempted this task before and failed because of the following:
+                {eval}
+
+                Use this information to improve your next attempt.
+                """
+
         return [
             {"role": "system", "content": final_prompt},
         ]
@@ -117,8 +127,7 @@ class PyAIToolkit:
 
     async def chat(
         self,
-        path: str | None = None,
-        prompt: str | None = None,
+        template: str | None = None,
         **kwargs: Any,
     ) -> CompletionResponse:
         """
@@ -131,13 +140,12 @@ class PyAIToolkit:
         Returns:
             CompletionResponse: The response from the LLM with text content
         """
-        messages = self._prepare_messages(path, prompt, **kwargs)
+        messages = self._prepare_messages(template, **kwargs)
         return await self.llm_client.chat(messages=messages)
 
     async def stream(
         self,
-        path: str | None = None,
-        prompt: str | None = None,
+        template: str | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[CompletionResponse, None]:
         """
@@ -150,15 +158,14 @@ class PyAIToolkit:
         Returns:
             AsyncGenerator[CompletionResponse, None]: Stream of responses from the LLM
         """
-        messages = self._prepare_messages(path, prompt, **kwargs)
+        messages = self._prepare_messages(template, **kwargs)
         async for response in self.llm_client.stream(messages=messages):
             yield response
 
     async def asend(
         self,
         response_model: Type[T],
-        path: str | None = None,
-        prompt: str | None = None,
+        template: str | None = None,
         **kwargs: Any,
     ) -> CompletionResponse[T]:
         """
@@ -175,7 +182,7 @@ class PyAIToolkit:
         client = self.llm_client
         if self.alternative_llm_clients:
             client = random.choice(self.alternative_llm_clients)
-        messages = self._prepare_messages(path, prompt, **kwargs)
+        messages = self._prepare_messages(template, **kwargs)
         response = await client.asend(
             messages=messages,
             response_model=response_model,
@@ -186,133 +193,39 @@ class PyAIToolkit:
             )
         return response
 
-    def _create_workflow(
-        self,
-        max_retries: int = 3,
-        echo: bool = False,
-    ) -> "BaseWorkflow":
-        from py_ai_toolkit.core.base import BaseWorkflow
-
-        return BaseWorkflow(
-            ai_toolkit=self,
-            error_class=BaseError,
-            max_retries=max_retries,
-            echo=echo,
-        )
-
-    async def _create_task_subtree(
-        self,
-        response_model: Type[S],
-        kwargs: dict[str, Any],
-        prompt: str | None = None,
-        path: str | None = None,
-        on_before_run: tuple[AwaitableCallback, Optional[dict[str, Any]]] | None = None,
-        on_after_run: tuple[AwaitableCallback, Optional[dict[str, Any]]] | None = None,
-        issues: list[str] | None = None,
-        split: bool = False,
-    ) -> tuple[
-        TreeExecutor[Type[S] | BaseValidation],
-        Node[Type[S]],
-        list[Node[BaseValidation]],
-    ]:
-        workflow = self._create_workflow()
-        task_node = workflow._create_task_node(
-            response_model=response_model,
-            prompt=prompt,
-            path=path,
-            on_before_run=on_before_run,
-            on_after_run=on_after_run,
-            kwargs=kwargs,
-        )
-        validation_nodes = []
-        if issues:
-            validation_nodes = workflow.create_validation_nodes(
-                input=lambda: task_node.output,
-                issues=issues,
-                source_node=task_node,
-                split_tests=split,
-            )
-            if isinstance(validation_nodes, list):
-                for node in validation_nodes:
-                    await task_node.connect(node)
-            else:
-                await task_node.connect(validation_nodes)
-
-        return (
-            TreeExecutor[Type[S] | BaseValidation](
-                uuid=f"{response_model.__name__}_{uuid4().hex}",
-                roots=[task_node],
-            ),
-            task_node,
-            validation_nodes,
-        )
-
     async def run_task(
         self,
-        response_model: Type[S],
+        template: str,
+        response_model: Type[T],
         kwargs: dict[str, Any],
-        prompt: str | None = None,
-        path: str | None = None,
-        on_before_run: tuple[AwaitableCallback, Optional[dict[str, Any]]] | None = None,
-        on_after_run: tuple[AwaitableCallback, Optional[dict[str, Any]]] | None = None,
-        issues: list[str] | None = None,
-        split: bool = False,
+        config: ValidationConfig = SingleShotValidationConfig(),
         echo: bool = False,
-    ) -> S:
+    ) -> T:
         """
-        Run a task and validate the output. Notes:
-        - You can provide a prompt or a path, but NEVER both.
-        - You can provide issues to validate the output, but if you don't provide issues, the validation node will not be created.
-        - Grafo allows us to execute callbacks before and after the task is run. They are attached to the task node.
 
         Args:
+            template: The template to pass to the task node.
             response_model: The type of the task output.
             kwargs: The kwargs to pass to the task node.
-            prompt: The prompt to pass to the task node.
-            path: The path to the prompt template file.
-            on_before_run: The on_before_run callback to pass to the task node.
-            on_after_run: The on_after_run callback to pass to the task node.
-            issues: The issues to pass to the validation node.
-            split: Whether to split the issues into multiple LLM calls.
+            config: The validation configurations for the tree
             echo: Whether to echo the output.
 
         Returns:
             The output of the task.
         """
-        executor, task_node, validation_nodes = await self._create_task_subtree(
+        from py_ai_toolkit.core.base import BaseWorkflow
+
+        workflow = BaseWorkflow(
+            ai_toolkit=self,
+            error_class=WorkflowError,
+            echo=echo,
+        )
+        executor = await workflow.create_task_tree(
+            template=template,
             response_model=response_model,
             kwargs=kwargs,
-            prompt=prompt,
-            path=path,
-            issues=issues,
-            split=split,
-            on_before_run=on_before_run,
-            on_after_run=on_after_run,
+            config=config,
+            echo=echo,
         )
-        await executor.run()
-
-        if isinstance(validation_nodes, list):
-            validation_nodes_list = validation_nodes
-        else:
-            validation_nodes_list = [validation_nodes]
-
-        if not task_node.output or any(
-            not node.output for node in validation_nodes_list
-        ):
-            raise BaseError(
-                message="Triple extraction workflow failed.", status_code=500
-            )
-        if not isinstance(task_node.output, response_model):
-            raise BaseError(
-                message=f"Task output is not an instance of {response_model.__name__}",
-                status_code=500,
-            )
-
-        if echo:
-            if task_node.output and isinstance(task_node.output, BaseModel):
-                logger.debug(task_node.output.model_dump_json(indent=2))
-            for node in validation_nodes_list:
-                if node.output and isinstance(node.output, BaseModel):
-                    logger.debug(node.output.model_dump_json(indent=2))
-
-        return task_node.output
+        results = await executor.run()
+        return results[0].output
