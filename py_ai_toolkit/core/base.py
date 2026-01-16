@@ -184,10 +184,17 @@ class BaseWorkflow:
             coroutine=self.task,
             kwargs=dict(
                 response_model=IssueModel,
-                output=lambda: task_node.output,
+                input=task_node.kwargs,
+                output=task_node.output,
                 template="""
                     # Task
-                    Evaluate the Output with regards to the issue.
+                    Evaluate the output with regards to the issue. Rules:
+                    - The issue is the only dimension that matters - everything else is irrelevant to whether the output is valid or not
+                    - Whether the output is factually correct is irrelevant to the issue
+
+                    # Context
+                    ## Inpute
+                    {{ input }}
 
                     ## Output
                     {{ output }}
