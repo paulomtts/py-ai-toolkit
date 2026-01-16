@@ -95,7 +95,7 @@ class PyAIToolkit:
             elif (
                 isinstance(value, list)
                 and len(value) > 0
-                and all(issubclass(item, BaseModel) for item in value)
+                and all(issubclass(type(item), BaseModel) for item in value)
             ):
                 kwargs[key] = encode([item.model_dump_json() for item in value])
 
