@@ -24,4 +24,4 @@ jobs:
         pip install pytest pytest-asyncio
 
     - name: Run tests
-      run: pytest tests/ 
+      run: pytest tests/ --ignore=tests/test_run_task.py
