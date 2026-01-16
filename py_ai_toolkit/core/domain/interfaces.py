@@ -6,7 +6,6 @@ from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import BaseModel, field_validator
 
 from py_ai_toolkit.core.domain.models import BaseIssue
-from py_ai_toolkit.core.utils import logger
 
 S = TypeVar("T", bound=BaseModel)
 V = TypeVar("V", bound=BaseIssue)
@@ -105,7 +104,6 @@ class IssueTreeExecutor(TreeExecutor[V]):
 
     async def run_validation_round(
         self,
-        echo: bool = False,
     ) -> bool | None:
         """
         Executes a round of issue validation for all leaf nodes in the tree.
@@ -125,9 +123,6 @@ class IssueTreeExecutor(TreeExecutor[V]):
                   are needed or a decision cannot be made yet.
         """
         nodes = await self.run()
-        if echo:
-            for node in nodes:
-                logger.debug(node.output.model_dump_json(indent=2))
         self.successes += sum(int(node.output.is_valid) for node in nodes)
         self.failures += sum(int(not node.output.is_valid) for node in nodes)
         self.failure_reasonings.extend(

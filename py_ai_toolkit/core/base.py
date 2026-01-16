@@ -14,6 +14,7 @@ from py_ai_toolkit.core.domain.interfaces import (
 )
 from py_ai_toolkit.core.domain.models import BaseIssue
 from py_ai_toolkit.core.tools import PyAIToolkit
+from py_ai_toolkit.core.utils import logger
 
 S = TypeVar("S", bound=BaseModel)
 V = TypeVar("V", bound=BaseIssue)
@@ -44,6 +45,7 @@ class BaseWorkflow:
         self,
         template: str | None = None,
         response_model: Type[S] | None = None,
+        echo: bool = False,
         **kwargs: Any,
     ) -> Union[str, S]:
         """
@@ -69,6 +71,8 @@ class BaseWorkflow:
             response_model=response_model,
             **base_kwargs,
         )
+        if echo:
+            logger.debug(result.content.model_dump_json(indent=2))
         return result.content
 
     def _create_task_node(
@@ -76,6 +80,7 @@ class BaseWorkflow:
         template: str,
         uuid: str | None = None,
         response_model: Type[S] | None = None,
+        echo: bool = False,
         **kwargs: Any,
     ) -> Node[Any]:
         """
@@ -96,6 +101,7 @@ class BaseWorkflow:
             kwargs=dict(
                 template=template,
                 response_model=response_model,
+                echo=echo,
                 **kwargs,
             ),
         )
@@ -158,6 +164,7 @@ class BaseWorkflow:
         self,
         issue: str,
         task_node: Node[Any],
+        echo: bool = False,
     ) -> Node[V]:
         """
         Creates an issue node with a custom-generated response model.
@@ -183,6 +190,7 @@ class BaseWorkflow:
                     ## Output
                     {{ output }}
                 """,
+                echo=echo,
             ),
         )
         return issue_node
@@ -212,6 +220,7 @@ class BaseWorkflow:
                 issue_node = self._create_issue_node(
                     issue=issue,
                     task_node=task_node,
+                    echo=echo,
                 )
                 issue_nodes.append(issue_node)
             executor = IssueTreeExecutor[V](
@@ -219,7 +228,7 @@ class BaseWorkflow:
                 uuid=f"Issue: {issue}",
                 roots=issue_nodes,
             )
-        result = await executor.run_validation_round(echo=echo)
+        result = await executor.run_validation_round()
         self.failure_reasonings[issue] = (
             executor.failure_reasonings
         )  # ? NOTE: temporary, until we have a way to consolidate failure reasonings

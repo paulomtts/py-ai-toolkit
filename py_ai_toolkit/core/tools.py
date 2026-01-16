@@ -228,9 +228,4 @@ class PyAIToolkit:
             echo=echo,
         )
         results = await executor.run()
-
-        # if echo:
-        #     for node in results:
-        #         logger.debug(node.output.model_dump_json(indent=2))
-
         return results[0].output
