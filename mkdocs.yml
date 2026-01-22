@@ -1,0 +1,51 @@
+site_name: py-ai-toolkit
+site_description: A toolkit for easily interacting with LLMs and building AI-driven workflows
+site_author: '@paulomtts'
+repo_url: https://github.com/paulomtts/Grafo-AI-Tools
+repo_name: GitHub
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.integrate
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Guide:
+      - Prompts: guide/prompts.md
+      - Response Models: guide/response-models.md
+      - Modes of Interaction: guide/modes.md
+      - Workflows: guide/workflows.md
+      - Running Tasks: guide/running-tasks.md
+  - API Reference:
+      - PyAIToolkit: api/tools.md
+      - BaseWorkflow: api/base-workflow.md
