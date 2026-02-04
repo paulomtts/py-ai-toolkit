@@ -6,7 +6,7 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from py_ai_toolkit.core.domain.errors import LLMAdapterError
-from py_ai_toolkit.core.domain.interfaces import CompletionResponse, S
+from py_ai_toolkit.core.domain.schemas import CompletionResponse, S
 from py_ai_toolkit.core.ports import LLMPort
 
 
@@ -27,6 +27,7 @@ class InstructorAdapter(LLMPort):
 
         client_kwargs = dict(
             api_key=api_key,
+            base_url=base_url,
         )
         if not base_url:
             client_kwargs["base_url"] = "http://localhost:11434/v1"

@@ -4,9 +4,9 @@ from grafo import Chunk, Node, TreeExecutor
 
 from .core.base import BaseWorkflow
 from .core.domain.errors import WorkflowError
-from .core.domain.interfaces import CompletionResponse, LLMConfig
+from .core.domain.schemas import CompletionResponse, LLMConfig
 from .core.domain.models import BaseIssue
-from .core.tools import PyAIToolkit
+from .core.toolkit import PyAIToolkit
 
 __all__ = [
     "PyAIToolkit",

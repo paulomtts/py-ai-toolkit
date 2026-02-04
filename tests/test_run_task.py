@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 
 from py_ai_toolkit import PyAIToolkit
-from py_ai_toolkit.core.domain.interfaces import (
+from py_ai_toolkit.core.domain.schemas import (
     KAheadVotingValidationConfig,
     LLMConfig,
     SingleShotValidationConfig,

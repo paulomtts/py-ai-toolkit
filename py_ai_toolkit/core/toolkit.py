@@ -5,7 +5,7 @@ from typing import Any, AsyncGenerator, Type, TypeVar
 from pydantic import BaseModel
 
 from py_ai_toolkit.core.domain.errors import WorkflowError
-from py_ai_toolkit.core.domain.interfaces import (
+from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
     LLMConfig,
     SingleShotValidationConfig,

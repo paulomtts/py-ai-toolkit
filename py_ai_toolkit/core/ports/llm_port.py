@@ -3,7 +3,7 @@ from typing import AsyncGenerator, Type, TypeVar
 
 from pydantic import BaseModel
 
-from py_ai_toolkit.core.domain.interfaces import CompletionResponse
+from py_ai_toolkit.core.domain.schemas import CompletionResponse
 
 T = TypeVar("T", bound=BaseModel)
 

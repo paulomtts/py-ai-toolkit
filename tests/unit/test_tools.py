@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from py_ai_toolkit.adapters import Jinja2Adapter, PydanticAdapter
-from py_ai_toolkit.core.tools import PyAIToolkit
+from py_ai_toolkit.core.toolkit import PyAIToolkit
 
 
 class DemoModel(BaseModel):
