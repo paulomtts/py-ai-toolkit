@@ -3,7 +3,7 @@ from typing import Annotated
 import pytest
 from pydantic import BaseModel, Field, ValidationError
 
-from py_ai_toolkit import Tool, tool
+from py_ai_toolkit import Tool, ToolType, tool
 from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
 from py_ai_toolkit.core.utils import _extract_description, _pascal_case
 
@@ -413,3 +413,42 @@ class TestToolOptions:
 
         result = await add.execute(a=2, b=3)
         assert result == 5
+
+    def test_tool_type_default_is_gather(self):
+        @tool
+        def simple(x: int) -> int:
+            return x
+
+        assert simple.tool_type == ToolType.GATHER
+
+    def test_tool_type_gather(self):
+        @tool(tool_type=ToolType.GATHER)
+        def read_file(path: str) -> str:
+            return ""
+
+        assert read_file.tool_type == ToolType.GATHER
+        assert read_file.tool_type.value == "gather"
+
+    def test_tool_type_action(self):
+        @tool(tool_type=ToolType.ACTION)
+        def write_file(path: str, content: str) -> bool:
+            return True
+
+        assert write_file.tool_type == ToolType.ACTION
+        assert write_file.tool_type.value == "action"
+
+    def test_all_options_together(self):
+        config = SingleShotValidationConfig()
+
+        @tool(
+            requires_approval=True,
+            validation_config=config,
+            tool_type=ToolType.ACTION,
+        )
+        def dangerous_action(path: str) -> bool:
+            """Dangerous action."""
+            return True
+
+        assert dangerous_action.requires_approval is True
+        assert dangerous_action.validation_config is config
+        assert dangerous_action.tool_type == ToolType.ACTION

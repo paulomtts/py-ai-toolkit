@@ -16,6 +16,7 @@ from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
 from py_ai_toolkit.core.domain.schemas import ValidationConfig
+from py_ai_toolkit.core.enums import ToolType
 from py_ai_toolkit.core.utils import (
     _extract_description,
     _is_basemodel_subclass,
@@ -34,6 +35,7 @@ class Tool:
         "_single_model_param",
         "requires_approval",
         "validation_config",
+        "tool_type",
     )
 
     def __init__(
@@ -46,6 +48,7 @@ class Tool:
         single_model_param: str | None = None,
         requires_approval: bool = False,
         validation_config: ValidationConfig | None = None,
+        tool_type: ToolType = ToolType.GATHER,
     ):
         self.name = name
         self.description = description
@@ -55,6 +58,7 @@ class Tool:
         self._single_model_param = single_model_param
         self.requires_approval = requires_approval
         self.validation_config = validation_config
+        self.tool_type = tool_type
 
     @property
     def schema(self) -> dict[str, Any]:
@@ -90,6 +94,7 @@ def _create_tool(
     fn: Callable[..., Any],
     requires_approval: bool = False,
     validation_config: ValidationConfig | None = None,
+    tool_type: ToolType = ToolType.GATHER,
 ) -> Tool:
     description = _extract_description(fn.__doc__)
 
@@ -122,6 +127,7 @@ def _create_tool(
                 single_model_param=param_name,
                 requires_approval=requires_approval,
                 validation_config=validation_config,
+                tool_type=tool_type,
             )
 
     fields: dict[str, Any] = {}
@@ -168,6 +174,7 @@ def _create_tool(
         param_types=param_types,
         requires_approval=requires_approval,
         validation_config=validation_config,
+        tool_type=tool_type,
     )
 
 
@@ -180,6 +187,7 @@ def tool(
     *,
     requires_approval: bool = False,
     validation_config: ValidationConfig | None = None,
+    tool_type: ToolType = ToolType.GATHER,
 ) -> Callable[[Callable[..., Any]], Tool]: ...
 
 
@@ -192,6 +200,7 @@ def tool(
     *,
     requires_approval: bool = False,
     validation_config: ValidationConfig | None = None,
+    tool_type: ToolType = ToolType.GATHER,
 ) -> Tool | Callable[[Callable[..., Any]], Tool]:
     if isinstance(fn, Tool):
         return fn
@@ -199,8 +208,8 @@ def tool(
     if fn is None:
 
         def decorator(func: Callable[..., Any]) -> Tool:
-            return _create_tool(func, requires_approval, validation_config)
+            return _create_tool(func, requires_approval, validation_config, tool_type)
 
         return decorator
 
-    return _create_tool(fn, requires_approval, validation_config)
+    return _create_tool(fn, requires_approval, validation_config, tool_type)
