@@ -1,11 +1,21 @@
 import asyncio
 import inspect
-from typing import Annotated, Any, Callable, Type, get_args, get_origin, get_type_hints
+from typing import (
+    Annotated,
+    Any,
+    Callable,
+    Type,
+    get_args,
+    get_origin,
+    get_type_hints,
+    overload,
+)
 
 from pydantic import BaseModel, Field, create_model
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
+from py_ai_toolkit.core.domain.schemas import ValidationConfig
 from py_ai_toolkit.core.utils import (
     _extract_description,
     _is_basemodel_subclass,
@@ -22,6 +32,8 @@ class Tool:
         "fn",
         "_param_types",
         "_single_model_param",
+        "requires_approval",
+        "validation_config",
     )
 
     def __init__(
@@ -32,6 +44,8 @@ class Tool:
         fn: Callable[..., Any],
         param_types: dict[str, Any],
         single_model_param: str | None = None,
+        requires_approval: bool = False,
+        validation_config: ValidationConfig | None = None,
     ):
         self.name = name
         self.description = description
@@ -39,6 +53,8 @@ class Tool:
         self.fn = fn
         self._param_types = param_types
         self._single_model_param = single_model_param
+        self.requires_approval = requires_approval
+        self.validation_config = validation_config
 
     @property
     def schema(self) -> dict[str, Any]:
@@ -70,10 +86,11 @@ class Tool:
         return f"Tool(name={self.name!r})"
 
 
-def tool(fn: Callable[..., Any] | Tool) -> Tool:
-    if isinstance(fn, Tool):
-        return fn
-
+def _create_tool(
+    fn: Callable[..., Any],
+    requires_approval: bool = False,
+    validation_config: ValidationConfig | None = None,
+) -> Tool:
     description = _extract_description(fn.__doc__)
 
     sig = inspect.signature(fn)
@@ -103,6 +120,8 @@ def tool(fn: Callable[..., Any] | Tool) -> Tool:
                 fn=fn,
                 param_types={param_name: base_type},
                 single_model_param=param_name,
+                requires_approval=requires_approval,
+                validation_config=validation_config,
             )
 
     fields: dict[str, Any] = {}
@@ -147,4 +166,41 @@ def tool(fn: Callable[..., Any] | Tool) -> Tool:
         parameters=parameters_model,
         fn=fn,
         param_types=param_types,
+        requires_approval=requires_approval,
+        validation_config=validation_config,
     )
+
+
+@overload
+def tool(fn: Callable[..., Any]) -> Tool: ...
+
+
+@overload
+def tool(
+    *,
+    requires_approval: bool = False,
+    validation_config: ValidationConfig | None = None,
+) -> Callable[[Callable[..., Any]], Tool]: ...
+
+
+@overload
+def tool(fn: Tool) -> Tool: ...
+
+
+def tool(
+    fn: Callable[..., Any] | Tool | None = None,
+    *,
+    requires_approval: bool = False,
+    validation_config: ValidationConfig | None = None,
+) -> Tool | Callable[[Callable[..., Any]], Tool]:
+    if isinstance(fn, Tool):
+        return fn
+
+    if fn is None:
+
+        def decorator(func: Callable[..., Any]) -> Tool:
+            return _create_tool(func, requires_approval, validation_config)
+
+        return decorator
+
+    return _create_tool(fn, requires_approval, validation_config)

@@ -4,6 +4,7 @@ import pytest
 from pydantic import BaseModel, Field, ValidationError
 
 from py_ai_toolkit import Tool, tool
+from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
 from py_ai_toolkit.core.utils import _extract_description, _pascal_case
 
 
@@ -350,3 +351,65 @@ class TestBaseModelParameters:
 
         result = await fn.execute(inner={"x": 42}, name="test")
         assert result == 42
+
+
+class TestToolOptions:
+    def test_requires_approval_default_false(self):
+        @tool
+        def simple(x: int) -> int:
+            return x
+
+        assert simple.requires_approval is False
+
+    def test_requires_approval_true(self):
+        @tool(requires_approval=True)
+        def dangerous(path: str) -> bool:
+            """Delete a file."""
+            return True
+
+        assert dangerous.requires_approval is True
+        assert dangerous.name == "dangerous"
+
+    def test_validation_config_default_none(self):
+        @tool
+        def simple(x: int) -> int:
+            return x
+
+        assert simple.validation_config is None
+
+    def test_validation_config_set(self):
+        config = SingleShotValidationConfig()
+
+        @tool(validation_config=config)
+        def validated(x: int) -> int:
+            return x
+
+        assert validated.validation_config is config
+
+    def test_both_options(self):
+        config = SingleShotValidationConfig()
+
+        @tool(requires_approval=True, validation_config=config)
+        def dangerous_validated(path: str) -> bool:
+            """Delete with validation."""
+            return True
+
+        assert dangerous_validated.requires_approval is True
+        assert dangerous_validated.validation_config is config
+
+    def test_decorator_with_parens_no_args(self):
+        @tool()
+        def fn(x: int) -> int:
+            return x
+
+        assert fn.requires_approval is False
+        assert fn.validation_config is None
+
+    @pytest.mark.asyncio
+    async def test_tool_with_options_still_executes(self):
+        @tool(requires_approval=True)
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        result = await add.execute(a=2, b=3)
+        assert result == 5
