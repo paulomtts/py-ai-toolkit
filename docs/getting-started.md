@@ -32,10 +32,10 @@ export EMBEDDING_MODEL="text-embedding-3-small"  # optional
 ### Programmatic Configuration
 
 ```python
-from py_ai_toolkit import PyAIToolkit
+from py_ai_toolkit import Toolkit
 from py_ai_toolkit.core.domain.interfaces import LLMConfig
 
-ait = PyAIToolkit(
+ait = Toolkit(
     main_model_config=LLMConfig(
         model="gpt-4",
         api_key="your-api-key",
@@ -50,10 +50,10 @@ ait = PyAIToolkit(
 ### Simple Text Response
 
 ```python
-from py_ai_toolkit import PyAIToolkit
+from py_ai_toolkit import Toolkit
 from py_ai_toolkit.core.domain.interfaces import LLMConfig
 
-ait = PyAIToolkit(main_model_config=LLMConfig())
+ait = Toolkit(main_model_config=LLMConfig())
 
 response = await ait.chat(
     template="Explain what {{ topic }} means in one sentence.",
@@ -111,7 +111,7 @@ response = await ait.chat(
 You can configure multiple models for load balancing:
 
 ```python
-ait = PyAIToolkit(
+ait = Toolkit(
     main_model_config=LLMConfig(model="gpt-4"),
     alternative_models_configs=[
         LLMConfig(model="gpt-4"),

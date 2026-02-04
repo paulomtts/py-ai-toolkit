@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 import py_ai_toolkit.core.toolkit as tools_mod
 from py_ai_toolkit.adapters import Jinja2Adapter, PydanticAdapter
-from py_ai_toolkit.core.toolkit import PyAIToolkit
+from py_ai_toolkit.core.toolkit import Toolkit
 
 
 class DemoModel(BaseModel):
@@ -16,9 +16,9 @@ class OtherModel(BaseModel):
     b: int
 
 
-def _new_toolkit(*, model_handler=None, prompt_formatter=None) -> PyAIToolkit:
+def _new_toolkit(*, model_handler=None, prompt_formatter=None) -> Toolkit:
     # Avoid calling __init__ (which wires real clients via factories)
-    ait = PyAIToolkit.__new__(PyAIToolkit)
+    ait = Toolkit.__new__(Toolkit)
     if model_handler is not None:
         ait.model_handler = model_handler
     if prompt_formatter is not None:

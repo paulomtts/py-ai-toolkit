@@ -21,7 +21,7 @@ from py_ai_toolkit.factories import (
 T = TypeVar("T", bound=BaseModel)
 
 
-class PyAIToolkit:
+class Toolkit:
     """
     A class that bundles methods for easily interacting with LLMs and manipulating pydantic BaseModels.
     """

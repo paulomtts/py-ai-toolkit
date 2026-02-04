@@ -47,5 +47,5 @@ nav:
       - Workflows: guide/workflows.md
       - Running Tasks: guide/running-tasks.md
   - API Reference:
-      - PyAIToolkit: api/tools.md
+      - Toolkit: api/tools.md
       - BaseWorkflow: api/base-workflow.md

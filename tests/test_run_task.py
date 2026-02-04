@@ -4,7 +4,7 @@ import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
-from py_ai_toolkit import PyAIToolkit
+from py_ai_toolkit import Toolkit
 from py_ai_toolkit.core.domain.schemas import (
     KAheadVotingValidationConfig,
     LLMConfig,
@@ -24,7 +24,7 @@ class FruitPurchase(BaseModel):
 
 @pytest.mark.asyncio
 async def test_run_task_no_validations():
-    ai_toolkit = PyAIToolkit(main_model_config=LLMConfig())
+    ai_toolkit = Toolkit(main_model_config=LLMConfig())
 
     result = await ai_toolkit.run_task(
         template="""
@@ -41,7 +41,7 @@ async def test_run_task_no_validations():
 
 @pytest.mark.asyncio
 async def test_run_task_with_single_validations():
-    ai_toolkit = PyAIToolkit(main_model_config=LLMConfig())
+    ai_toolkit = Toolkit(main_model_config=LLMConfig())
 
     result = await ai_toolkit.run_task(
         template="""
@@ -61,7 +61,7 @@ async def test_run_task_with_single_validations():
 
 @pytest.mark.asyncio
 async def test_run_task_with_threshold_validations():
-    ai_toolkit = PyAIToolkit(main_model_config=LLMConfig())
+    ai_toolkit = Toolkit(main_model_config=LLMConfig())
 
     result = await ai_toolkit.run_task(
         template="""
@@ -81,7 +81,7 @@ async def test_run_task_with_threshold_validations():
 
 @pytest.mark.asyncio
 async def test_run_task_with_kahead_validations():
-    ai_toolkit = PyAIToolkit(main_model_config=LLMConfig())
+    ai_toolkit = Toolkit(main_model_config=LLMConfig())
 
     result = await ai_toolkit.run_task(
         template="""

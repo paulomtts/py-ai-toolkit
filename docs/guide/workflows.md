@@ -17,11 +17,11 @@ This abstraction fits naturally with AI-driven tasks, where outputs from one LLM
 The `BaseWorkflow` class provides conveniences for building LLM-powered workflows:
 
 ```python
-from py_ai_toolkit import PyAIToolkit
+from py_ai_toolkit import Toolkit
 from py_ai_toolkit.core.base import BaseWorkflow
 from py_ai_toolkit.core.domain.errors import WorkflowError
 
-ait = PyAIToolkit(main_model_config=LLMConfig())
+ait = Toolkit(main_model_config=LLMConfig())
 
 workflow = BaseWorkflow(
     ai_toolkit=ait,

@@ -21,7 +21,7 @@ Rather than managing each piece separately, you can focus on your application lo
 
 ### Simple LLM Calling
 ```python
-ait = PyAIToolkit(main_model_config=LLMConfig())
+ait = Toolkit(main_model_config=LLMConfig())
 response = await ait.chat(template="./prompt.md", message="Hello!")
 ```
 

@@ -70,7 +70,7 @@ response = ait.asend(response_model=Purchase, template=template, message=message
 
 ### Using run_task with validation:
 ```python
-from py_ai_toolkit import PyAIToolkit
+from py_ai_toolkit import Toolkit
 from py_ai_toolkit.core.domain.interfaces import (
     LLMConfig,
     SingleShotValidationConfig,
@@ -81,7 +81,7 @@ class Purchase(BaseModel):
     product: str
     quantity: int
 
-ai_toolkit = PyAIToolkit(main_model_config=LLMConfig())
+ai_toolkit = Toolkit(main_model_config=LLMConfig())
 
 result = await ai_toolkit.run_task(
     template="""

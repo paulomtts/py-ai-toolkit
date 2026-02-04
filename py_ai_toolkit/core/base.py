@@ -13,7 +13,7 @@ from py_ai_toolkit.core.domain.schemas import (
     ValidationConfig,
 )
 from py_ai_toolkit.core.executors import IssueTreeExecutor
-from py_ai_toolkit.core.toolkit import PyAIToolkit
+from py_ai_toolkit.core.toolkit import Toolkit
 from py_ai_toolkit.core.utils import logger
 
 S = TypeVar("S", bound=BaseModel)
@@ -28,7 +28,7 @@ class BaseWorkflow:
 
     def __init__(
         self,
-        ai_toolkit: PyAIToolkit,
+        ai_toolkit: Toolkit,
         error_class: Type[Exception],
         echo: bool = False,
     ):

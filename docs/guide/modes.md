@@ -122,7 +122,7 @@ vector = await ait.embed("Machine learning is fascinating")
 When using `asend()`, you can leverage alternative models for load balancing:
 
 ```python
-ait = PyAIToolkit(
+ait = Toolkit(
     main_model_config=LLMConfig(model="gpt-4"),
     alternative_models_configs=[
         LLMConfig(model="gpt-4"),

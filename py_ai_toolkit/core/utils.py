@@ -4,7 +4,7 @@ from typing import Annotated, Any, get_args, get_origin
 
 from pydantic import BaseModel
 
-logger = logging.getLogger("PyAIToolkit")
+logger = logging.getLogger("Toolkit")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler())
 

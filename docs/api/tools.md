@@ -1,11 +1,11 @@
-# PyAIToolkit API Reference
+# Toolkit API Reference
 
 The main class for interacting with LLMs and managing response models.
 
 ## Constructor
 
 ```python
-PyAIToolkit(
+Toolkit(
     main_model_config: LLMConfig,
     alternative_models_configs: list[LLMConfig] | None = None
 )
@@ -19,10 +19,10 @@ PyAIToolkit(
 **Example:**
 
 ```python
-from py_ai_toolkit import PyAIToolkit
+from py_ai_toolkit import Toolkit
 from py_ai_toolkit.core.domain.interfaces import LLMConfig
 
-ait = PyAIToolkit(
+ait = Toolkit(
     main_model_config=LLMConfig(
         model="gpt-4",
         api_key="your-api-key"

@@ -6,7 +6,7 @@ Base class for building LLM-powered workflows using grafo DAGs.
 
 ```python
 BaseWorkflow(
-    ai_toolkit: PyAIToolkit,
+    ai_toolkit: Toolkit,
     error_class: Type[Exception],
     echo: bool = False
 )
@@ -14,18 +14,18 @@ BaseWorkflow(
 
 **Parameters:**
 
-- `ai_toolkit` (PyAIToolkit): Instance of PyAIToolkit for LLM operations
+- `ai_toolkit` (Toolkit): Instance of Toolkit for LLM operations
 - `error_class` (Type[Exception]): Exception class to raise on workflow errors
 - `echo` (bool): Enable debug logging
 
 **Example:**
 
 ```python
-from py_ai_toolkit import PyAIToolkit
+from py_ai_toolkit import Toolkit
 from py_ai_toolkit.core.base import BaseWorkflow
 from py_ai_toolkit.core.domain.errors import WorkflowError
 
-ait = PyAIToolkit(main_model_config=LLMConfig())
+ait = Toolkit(main_model_config=LLMConfig())
 
 workflow = BaseWorkflow(
     ai_toolkit=ait,
