@@ -3,9 +3,9 @@ from typing import Literal
 import pytest
 from pydantic import BaseModel, Field
 
-import py_ai_toolkit.core.tools as tools_mod
+import py_ai_toolkit.core.toolkit as tools_mod
 from py_ai_toolkit.adapters import Jinja2Adapter, PydanticAdapter
-from py_ai_toolkit.core.tools import PyAIToolkit
+from py_ai_toolkit.core.toolkit import PyAIToolkit
 
 
 class DemoModel(BaseModel):

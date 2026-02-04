@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from toon_python import encode
 
 from py_ai_toolkit.core.domain.errors import WorkflowError
-from py_ai_toolkit.core.domain.interfaces import (
+from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
     LLMConfig,
     SingleShotValidationConfig,

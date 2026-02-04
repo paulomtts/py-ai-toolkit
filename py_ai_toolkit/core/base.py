@@ -5,15 +5,15 @@ from grafo import Node, TreeExecutor
 from pydantic import BaseModel
 
 from py_ai_toolkit.core.domain.errors import WorkflowError
-from py_ai_toolkit.core.domain.interfaces import (
-    IssueTreeExecutor,
+from py_ai_toolkit.core.domain.models import BaseIssue
+from py_ai_toolkit.core.domain.schemas import (
     KAheadVotingValidationConfig,
     SingleShotValidationConfig,
     ThresholdVotingValidationConfig,
     ValidationConfig,
 )
-from py_ai_toolkit.core.domain.models import BaseIssue
-from py_ai_toolkit.core.tools import PyAIToolkit
+from py_ai_toolkit.core.executors import IssueTreeExecutor
+from py_ai_toolkit.core.toolkit import PyAIToolkit
 from py_ai_toolkit.core.utils import logger
 
 S = TypeVar("S", bound=BaseModel)
@@ -108,7 +108,7 @@ class BaseWorkflow:
             ),
         )
 
-    def _ensure_source_node_output(self, node: Node[T]) -> T:
+    def _ensure_source_node_output(self, node: Node[S]) -> S:
         if not node.output:
             raise self.ErrorClass(
                 message="Source node output is None",
@@ -137,7 +137,8 @@ class BaseWorkflow:
 
         Args:
             source_node (Node[S]): The source node.
-            validation_subtree (TreeExecutor[V]): The validation subtree.
+            validation_node (Node[bool]): The validation node.
+            config (ValidationConfig): The configuration for the validation.
         """
         await validation_node.redirect([])
 
@@ -187,7 +188,7 @@ class BaseWorkflow:
                 input=task_node.kwargs,
                 output=task_node.output,
                 template="""
-                    # Task
+                    # Goal
                     Evaluate the output with regards to the issue. Rules:
                     - The issue is the only dimension that matters - everything else is irrelevant to whether the output is valid or not
                     - Whether the output is factually correct is irrelevant to the issue
@@ -245,12 +246,11 @@ class BaseWorkflow:
         )  # ? NOTE: temporary, until we have a way to consolidate failure reasonings
 
         ############################
-        # TODO: consolidate failure reasonings
         if result is False and (
             isinstance(config, ThresholdVotingValidationConfig)
             or isinstance(config, KAheadVotingValidationConfig)
         ):
-            pass
+            pass  # TODO: consolidate failure reasonings here
         ############################
         if isinstance(config, KAheadVotingValidationConfig) and result is None:
             return await self._run_issue(
