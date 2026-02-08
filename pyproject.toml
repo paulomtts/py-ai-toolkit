@@ -21,17 +21,24 @@ classifiers = [
 
 requires-python = ">=3.11"
 dependencies = [
-    "build>=1.3.0",
-    "bump2version>=1.0.1",
     "grafo>=0.2.36",
     "instructor>=1.13.0",
     "openai>=1.104.2",
     "pydantic>=2.12.4",
-    "pytest>=8.4.1",
-    "pytest-asyncio>=1.1.0",
     "python-dotenv>=1.2.1",
     "pyyaml>=6.0.2",
     "toon-python>=0.1.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.3.0",
+    "bump2version>=1.0.1",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+]
+docs = [
+    "mkdocs",
 ]
 
 [tool.setuptools.packages.find]
