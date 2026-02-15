@@ -27,9 +27,11 @@ class PyAIToolkit:
 
     def __init__(
         self,
-        main_model_config: LLMConfig,
+        main_model_config: LLMConfig | None = None,
         alternative_models_configs: list[LLMConfig] | None = None,
     ):
+        if main_model_config is None:
+            main_model_config = LLMConfig()
         self.llm_client = create_llm_client(
             model=main_model_config.model or os.getenv("LLM_MODEL", ""),
             embedding_model=main_model_config.embedding_model
