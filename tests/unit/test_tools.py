@@ -1,9 +1,7 @@
 from typing import Literal
 
-import pytest
 from pydantic import BaseModel, Field
 
-import py_ai_toolkit.core.tools as tools_mod
 from py_ai_toolkit.adapters import Jinja2Adapter, PydanticAdapter
 from py_ai_toolkit.core.tools import PyAIToolkit
 
@@ -58,13 +56,7 @@ def test_reduce_model_schema_matches_pydantic_adapter_output():
     )
 
 
-def test_prepare_messages_renders_prompt_template_with_kwargs(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    def fake_encode(x):
-        return f"ENC({x})"
-
-    monkeypatch.setattr(tools_mod, "encode", fake_encode)
+def test_prepare_messages_renders_prompt_template_with_kwargs():
     ait = _new_toolkit(prompt_formatter=Jinja2Adapter())
 
     demo = DemoModel(a=1)
@@ -77,27 +69,19 @@ def test_prepare_messages_renders_prompt_template_with_kwargs(
         many=demo_list,
     )
 
-    expected_single = f"ENC({demo.model_dump_json()})"
-    expected_many = f"ENC({[m.model_dump_json() for m in demo_list]})"
+    expected_single = demo.model_dump_json()
+    expected_many = str([m.model_dump_json() for m in demo_list])
     expected_content = f"MY_MESSAGE; S={expected_single}; M={expected_many}"
 
     assert messages == [{"role": "system", "content": expected_content}]
 
 
-def test_prepare_messages_renders_prompt_with_encoded_kwargs(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path,
-):
-    def fake_encode(x):
-        return f"ENC({x})"
-
-    monkeypatch.setattr(tools_mod, "encode", fake_encode)
+def test_prepare_messages_renders_prompt_with_encoded_kwargs(tmp_path):
     ait = _new_toolkit(prompt_formatter=Jinja2Adapter())
 
     demo = DemoModel(a=10)
     demo_list = [DemoModel(a=20), DemoModel(a=30)]
 
-    # real Jinja2Adapter reads a file, so create a real template
     template_path = tmp_path / "template.md"
     template_path.write_text(
         "S={{ single }}; M={{ many }}; P={{ primitive }}; E={{ empty }}",
@@ -112,8 +96,8 @@ def test_prepare_messages_renders_prompt_with_encoded_kwargs(
         primitive=123,
     )
 
-    expected_single = f"ENC({demo.model_dump_json()})"
-    expected_many = f"ENC({[m.model_dump_json() for m in demo_list]})"
+    expected_single = demo.model_dump_json()
+    expected_many = str([m.model_dump_json() for m in demo_list])
     expected_content = f"S={expected_single}; M={expected_many}; P=123; E=[]"
 
     assert messages == [{"role": "system", "content": expected_content}]
