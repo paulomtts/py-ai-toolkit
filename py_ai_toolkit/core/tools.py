@@ -3,7 +3,6 @@ import random
 from typing import Any, AsyncGenerator, Type, TypeVar
 
 from pydantic import BaseModel
-from toon_python import encode
 
 from py_ai_toolkit.core.domain.errors import WorkflowError
 from py_ai_toolkit.core.domain.interfaces import (
@@ -91,13 +90,13 @@ class PyAIToolkit:
 
         for key, value in kwargs.items():
             if isinstance(value, BaseModel):
-                kwargs[key] = encode(value.model_dump_json())
+                kwargs[key] = value.model_dump_json()
             elif (
                 isinstance(value, list)
                 and len(value) > 0
                 and all(issubclass(type(item), BaseModel) for item in value)
             ):
-                kwargs[key] = encode([item.model_dump_json() for item in value])
+                kwargs[key] = [item.model_dump_json() for item in value]
 
         final_prompt = self.prompt_formatter.render(
             path=template if is_path else None,

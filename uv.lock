@@ -1169,7 +1169,7 @@ wheels = [
 
 [[package]]
 name = "py-ai-toolkit"
-version = "0.5.2"
+version = "0.5.3"
 source = { editable = "." }
 dependencies = [
     { name = "grafo" },
@@ -1178,7 +1178,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
-    { name = "toon-python" },
 ]
 
 [package.optional-dependencies]
@@ -1188,6 +1187,9 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
 ]
+docs = [
+    { name = "mkdocs" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1195,15 +1197,15 @@ requires-dist = [
     { name = "bump2version", marker = "extra == 'dev'", specifier = ">=1.0.1" },
     { name = "grafo", specifier = ">=0.2.36" },
     { name = "instructor", specifier = ">=1.13.0" },
+    { name = "mkdocs", marker = "extra == 'docs'" },
     { name = "openai", specifier = ">=1.104.2" },
     { name = "pydantic", specifier = ">=2.12.4" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.1.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "pyyaml", specifier = ">=6.0.2" },
-    { name = "toon-python", specifier = ">=0.1.2" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "pydantic"
@@ -1552,15 +1554,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/47/c6/ee486fd809e357697ee8a44d3d69222b344920433d3b6666ccd9b374630c/tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a", size = 49413, upload-time = "2026-02-07T10:45:33.841Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/c1/eb8f9debc45d3b7918a32ab756658a0904732f75e555402972246b0b8e71/tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55", size = 28926, upload-time = "2026-02-07T10:45:32.24Z" },
-]
-
-[[package]]
-name = "toon-python"
-version = "0.1.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fc/c6/104805c4efa3853c875bd8d2f199e06d383cd307bbdc788f668c4178ce2d/toon_python-0.1.2.tar.gz", hash = "sha256:10420d622c043cb5d9d444f92524731ded4b536fb77194c998855bcda12be3d2", size = 85215, upload-time = "2025-10-27T14:58:20.168Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f8/69/017f9f27f0e6b24871ecb73cdc675231c472d4b50a89be0b6779441862cd/toon_python-0.1.2-py3-none-any.whl", hash = "sha256:0582272edbb7b244c4931f80c679c2867c7d0a64faa53f16c355fcc3b8076d8f", size = 23680, upload-time = "2025-10-27T14:58:18.627Z" },
 ]
 
 [[package]]
