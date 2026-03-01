@@ -16,6 +16,7 @@ class LLMConfig(BaseModel):
     embedding_model: str | None = os.getenv("EMBEDDING_MODEL", "")
     api_key: str | None = os.getenv("LLM_API_KEY", "")
     base_url: str | None = os.getenv("LLM_BASE_URL", "")
+    reasoning_effort: str | None = os.getenv("LLM_REASONING_EFFORT", "")
 
 
 class CompletionResponse(BaseModel, Generic[S]):

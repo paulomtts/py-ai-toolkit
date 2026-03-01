@@ -38,6 +38,7 @@ class PyAIToolkit:
             or os.getenv("EMBEDDING_MODEL", ""),
             api_key=main_model_config.api_key or os.getenv("LLM_API_KEY", ""),
             base_url=main_model_config.base_url or os.getenv("LLM_BASE_URL", ""),
+            reasoning_effort=main_model_config.reasoning_effort or os.getenv("LLM_REASONING_EFFORT", ""),
         )
         self.alternative_llm_clients = []
         if alternative_models_configs:

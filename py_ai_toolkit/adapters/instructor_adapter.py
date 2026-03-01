@@ -21,6 +21,7 @@ class InstructorAdapter(LLMPort):
         embedding_model: str,
         api_key: str,
         base_url: str | None = None,
+        reasoning_effort: str | None = None,
     ):
         self._model = model
         self._embedding_model = embedding_model
@@ -32,10 +33,13 @@ class InstructorAdapter(LLMPort):
         if not base_url:
             client_kwargs["base_url"] = "http://localhost:11434/v1"
         self.openai_client = AsyncOpenAI(**client_kwargs)  # type: ignore
-        self.client = instructor.from_openai(
+        instructor_kwargs = dict(
             client=self.openai_client,
             mode=instructor.Mode.JSON,
         )
+        if reasoning_effort:
+            instructor_kwargs["reasoning_effort"] = reasoning_effort
+        self.client = instructor.from_openai(**instructor_kwargs)
 
     async def embed(self, text: str) -> list[float]:
         """
