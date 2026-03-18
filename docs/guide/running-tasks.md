@@ -191,7 +191,7 @@ This gives the LLM context about previous failures, improving success rates on r
 ## Example: Production Task
 
 ```python
-from py_ai_toolkit.core.domain.interfaces import ThresholdVotingValidationConfig
+from py_ai_toolkit.core.domain.schemas import ThresholdVotingValidationConfig
 
 result = await ait.run_task(
     template="""

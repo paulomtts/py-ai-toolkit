@@ -49,3 +49,4 @@ nav:
   - API Reference:
       - PyAIToolkit: api/tools.md
       - BaseWorkflow: api/base-workflow.md
+  - Claude Code Skill: claude-code-skill.md

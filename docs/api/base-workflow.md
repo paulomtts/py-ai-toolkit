@@ -104,7 +104,7 @@ async def create_task_tree(
 **Example:**
 
 ```python
-from py_ai_toolkit.core.domain.interfaces import ThresholdVotingValidationConfig
+from py_ai_toolkit.core.domain.schemas import ThresholdVotingValidationConfig
 
 executor = await workflow.create_task_tree(
     template="Parse this: {{ data }}",

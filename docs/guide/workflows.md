@@ -54,7 +54,7 @@ result = await workflow.task(
 Create complex workflows with validation using `create_task_tree()`:
 
 ```python
-from py_ai_toolkit.core.domain.interfaces import SingleShotValidationConfig
+from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
 
 executor = await workflow.create_task_tree(
     template="Extract purchase intent: {{ message }}",

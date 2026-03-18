@@ -20,7 +20,7 @@ PyAIToolkit(
 
 ```python
 from py_ai_toolkit import PyAIToolkit
-from py_ai_toolkit.core.domain.interfaces import LLMConfig
+from py_ai_toolkit.core.domain.schemas import LLMConfig
 
 ait = PyAIToolkit(
     main_model_config=LLMConfig(
@@ -183,7 +183,7 @@ async def run_task(
 **Example:**
 
 ```python
-from py_ai_toolkit.core.domain.interfaces import SingleShotValidationConfig
+from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
 
 result = await ait.run_task(
     template="Extract data from: {{ input }}",

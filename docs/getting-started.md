@@ -33,7 +33,7 @@ export EMBEDDING_MODEL="text-embedding-3-small"  # optional
 
 ```python
 from py_ai_toolkit import PyAIToolkit
-from py_ai_toolkit.core.domain.interfaces import LLMConfig
+from py_ai_toolkit import LLMConfig
 
 ait = PyAIToolkit(
     main_model_config=LLMConfig(
@@ -51,7 +51,7 @@ ait = PyAIToolkit(
 
 ```python
 from py_ai_toolkit import PyAIToolkit
-from py_ai_toolkit.core.domain.interfaces import LLMConfig
+from py_ai_toolkit import LLMConfig
 
 ait = PyAIToolkit(main_model_config=LLMConfig())
 
