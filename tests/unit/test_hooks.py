@@ -7,7 +7,10 @@ from openai.types.chat import ChatCompletion
 from pydantic import BaseModel as PydanticBaseModel
 
 from py_ai_toolkit.adapters import Jinja2Adapter
-from py_ai_toolkit.core.domain.schemas import CompletionResponse, SingleShotValidationConfig
+from py_ai_toolkit.core.domain.schemas import (
+    CompletionResponse,
+    SingleShotValidationConfig,
+)
 from py_ai_toolkit.core.hooks import (
     AfterLLMCallContext,
     AfterRenderContext,
@@ -214,7 +217,9 @@ async def test_asend_fires_before_and_after_llm_hooks():
     ait, _ = _new_toolkit_with_llm()
     mock_instance = MyModel(value="test")
     mock_completion = create_autospec(ChatCompletion, instance=True)
-    mock_response = CompletionResponse(completion=mock_completion, content=mock_instance)
+    mock_response = CompletionResponse(
+        completion=mock_completion, content=mock_instance
+    )
     ait.llm_client.asend = AsyncMock(return_value=mock_response)
 
     before_captured = []
@@ -258,7 +263,7 @@ async def test_run_validations_fires_before_and_after_validation_hooks():
 
     # Create a mock task_node with output
     mock_output = MagicMock(spec=PydanticBaseModel)
-    mock_output.model_dump_json = MagicMock(return_value='{}')
+    mock_output.model_dump_json = MagicMock(return_value="{}")
     task_node = MagicMock()
     task_node.output = mock_output
     task_node.kwargs = {"response_model": type(mock_output)}
@@ -299,7 +304,7 @@ async def test_redirect_fires_on_retry_hook():
     workflow.hooks = hooks
 
     mock_output = MagicMock(spec=PydanticBaseModel)
-    mock_output.model_dump_json = MagicMock(return_value='{}')
+    mock_output.model_dump_json = MagicMock(return_value="{}")
 
     task_node = MagicMock()
     task_node.output = mock_output
@@ -327,5 +332,6 @@ def test_hooks_exported_from_package():
     from py_ai_toolkit.core.hooks import (
         BeforeRenderContext,
     )
+
     assert Hooks is not None
     assert BeforeRenderContext is not None
