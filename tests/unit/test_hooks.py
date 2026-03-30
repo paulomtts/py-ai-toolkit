@@ -330,3 +330,18 @@ async def test_redirect_fires_on_retry_hook():
     assert len(retry_captured) == 1
     assert retry_captured[0].current_retry == 1
     assert retry_captured[0].max_retries == 3
+
+
+def test_hooks_exported_from_package():
+    from py_ai_toolkit import Hooks
+    from py_ai_toolkit.core.hooks import (
+        BeforeRenderContext,
+        AfterRenderContext,
+        BeforeLLMCallContext,
+        AfterLLMCallContext,
+        BeforeValidationContext,
+        AfterValidationContext,
+        OnRetryContext,
+    )
+    assert Hooks is not None
+    assert BeforeRenderContext is not None
