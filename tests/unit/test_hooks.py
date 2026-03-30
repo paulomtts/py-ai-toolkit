@@ -164,3 +164,79 @@ async def test_prepare_messages_works_without_hooks():
     ait = _new_toolkit(prompt_formatter=Jinja2Adapter())
     messages = await ait._prepare_messages(template="plain prompt")
     assert messages == [{"role": "system", "content": "plain prompt"}]
+
+
+from unittest.mock import MagicMock, create_autospec
+from openai.types.chat import ChatCompletion
+from py_ai_toolkit.core.domain.schemas import CompletionResponse
+
+
+def _new_toolkit_with_llm():
+    from py_ai_toolkit.core.toolkit import PyAIToolkit
+
+    ait = PyAIToolkit.__new__(PyAIToolkit)
+    ait.prompt_formatter = Jinja2Adapter()
+    ait.alternative_llm_clients = []
+
+    mock_completion = create_autospec(ChatCompletion, instance=True)
+    mock_response = CompletionResponse(completion=mock_completion, content="hello")
+    ait.llm_client = AsyncMock()
+    ait.llm_client.chat = AsyncMock(return_value=mock_response)
+    ait.llm_client._model = "test-model"
+    return ait, mock_response
+
+
+@pytest.mark.asyncio
+async def test_chat_fires_before_and_after_llm_hooks():
+    ait, mock_response = _new_toolkit_with_llm()
+    before_captured = []
+    after_captured = []
+
+    async def on_before(ctx: BeforeLLMCallContext):
+        before_captured.append(ctx)
+
+    async def on_after(ctx: AfterLLMCallContext):
+        after_captured.append(ctx)
+
+    hooks = Hooks(before_llm_call=on_before, after_llm_call=on_after)
+    await ait.chat(template="hello", hooks=hooks)
+
+    assert len(before_captured) == 1
+    assert before_captured[0].model == "test-model"
+    assert before_captured[0].response_model is None
+
+    assert len(after_captured) == 1
+    assert after_captured[0].response is mock_response
+    assert after_captured[0].elapsed_ms >= 0
+
+
+@pytest.mark.asyncio
+async def test_asend_fires_before_and_after_llm_hooks():
+    from pydantic import BaseModel
+
+    class MyModel(BaseModel):
+        value: str
+
+    ait, _ = _new_toolkit_with_llm()
+    mock_instance = MyModel(value="test")
+    mock_completion = create_autospec(ChatCompletion, instance=True)
+    mock_response = CompletionResponse(completion=mock_completion, content=mock_instance)
+    ait.llm_client.asend = AsyncMock(return_value=mock_response)
+
+    before_captured = []
+    after_captured = []
+
+    async def on_before(ctx: BeforeLLMCallContext):
+        before_captured.append(ctx)
+
+    async def on_after(ctx: AfterLLMCallContext):
+        after_captured.append(ctx)
+
+    hooks = Hooks(before_llm_call=on_before, after_llm_call=on_after)
+    await ait.asend(response_model=MyModel, template="hello", hooks=hooks)
+
+    assert len(before_captured) == 1
+    assert before_captured[0].response_model is MyModel
+
+    assert len(after_captured) == 1
+    assert after_captured[0].elapsed_ms >= 0
