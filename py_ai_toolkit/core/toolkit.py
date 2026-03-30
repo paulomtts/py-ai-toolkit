@@ -13,9 +13,12 @@ from py_ai_toolkit.core.domain.schemas import (
     ValidationConfig,
 )
 from py_ai_toolkit.core.hooks import (
-    Hooks, _fire_hook,
-    BeforeRenderContext, AfterRenderContext,
-    BeforeLLMCallContext, AfterLLMCallContext,
+    Hooks,
+    _fire_hook,
+    BeforeRenderContext,
+    AfterRenderContext,
+    BeforeLLMCallContext,
+    AfterLLMCallContext,
 )
 from py_ai_toolkit.factories import (
     create_llm_client,
@@ -44,7 +47,8 @@ class PyAIToolkit:
             or os.getenv("EMBEDDING_MODEL", ""),
             api_key=main_model_config.api_key or os.getenv("LLM_API_KEY", ""),
             base_url=main_model_config.base_url or os.getenv("LLM_BASE_URL", ""),
-            reasoning_effort=main_model_config.reasoning_effort or os.getenv("LLM_REASONING_EFFORT", ""),
+            reasoning_effort=main_model_config.reasoning_effort
+            or os.getenv("LLM_REASONING_EFFORT", ""),
         )
         self.alternative_llm_clients = []
         if alternative_models_configs:
@@ -91,7 +95,9 @@ class PyAIToolkit:
         """
         return self.model_handler.reduce_model_schema(model, include_description)
 
-    async def _prepare_messages(self, template: str | None = None, hooks: Hooks | None = None, **kwargs: Any) -> list:
+    async def _prepare_messages(
+        self, template: str | None = None, hooks: Hooks | None = None, **kwargs: Any
+    ) -> list:
         try:
             is_path = os.path.exists(template)
         except Exception:
