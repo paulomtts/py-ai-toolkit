@@ -1,5 +1,6 @@
 from typing import Literal
 
+import pytest
 from pydantic import BaseModel, Field
 
 from py_ai_toolkit.adapters import Jinja2Adapter, PydanticAdapter
@@ -56,13 +57,14 @@ def test_reduce_model_schema_matches_pydantic_adapter_output():
     )
 
 
-def test_prepare_messages_renders_prompt_template_with_kwargs():
+@pytest.mark.asyncio
+async def test_prepare_messages_renders_prompt_template_with_kwargs():
     ait = _new_toolkit(prompt_formatter=Jinja2Adapter())
 
     demo = DemoModel(a=1)
     demo_list = [DemoModel(a=2), DemoModel(a=3)]
 
-    messages = ait._prepare_messages(
+    messages = await ait._prepare_messages(
         template="{{ message }}; S={{ single }}; M={{ many }}",
         message="MY_MESSAGE",
         single=demo,
@@ -76,7 +78,8 @@ def test_prepare_messages_renders_prompt_template_with_kwargs():
     assert messages == [{"role": "system", "content": expected_content}]
 
 
-def test_prepare_messages_renders_prompt_with_encoded_kwargs(tmp_path):
+@pytest.mark.asyncio
+async def test_prepare_messages_renders_prompt_with_encoded_kwargs(tmp_path):
     ait = _new_toolkit(prompt_formatter=Jinja2Adapter())
 
     demo = DemoModel(a=10)
@@ -88,7 +91,7 @@ def test_prepare_messages_renders_prompt_with_encoded_kwargs(tmp_path):
         encoding="utf-8",
     )
 
-    messages = ait._prepare_messages(
+    messages = await ait._prepare_messages(
         template=str(template_path),
         single=demo,
         many=demo_list,

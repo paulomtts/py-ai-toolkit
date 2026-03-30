@@ -106,3 +106,61 @@ def test_fire_hook_calls_callback():
 def test_fire_hook_skips_none():
     # Should not raise
     asyncio.get_event_loop().run_until_complete(_fire_hook(None, "anything"))
+
+
+from unittest.mock import AsyncMock
+
+from py_ai_toolkit.adapters import Jinja2Adapter
+
+
+def _new_toolkit(*, prompt_formatter=None):
+    from py_ai_toolkit.core.toolkit import PyAIToolkit
+
+    ait = PyAIToolkit.__new__(PyAIToolkit)
+    if prompt_formatter is not None:
+        ait.prompt_formatter = prompt_formatter
+    return ait
+
+
+@pytest.mark.asyncio
+async def test_prepare_messages_fires_before_render_hook():
+    ait = _new_toolkit(prompt_formatter=Jinja2Adapter())
+    captured = []
+
+    async def on_before(ctx: BeforeRenderContext):
+        captured.append(ctx)
+
+    hooks = Hooks(before_render=on_before)
+    await ait._prepare_messages(
+        template="{{ name }} hello",
+        hooks=hooks,
+        name="Alice",
+    )
+    assert len(captured) == 1
+    assert captured[0].template == "{{ name }} hello"
+    assert captured[0].kwargs["name"] == "Alice"
+
+
+@pytest.mark.asyncio
+async def test_prepare_messages_fires_after_render_hook():
+    ait = _new_toolkit(prompt_formatter=Jinja2Adapter())
+    captured = []
+
+    async def on_after(ctx: AfterRenderContext):
+        captured.append(ctx)
+
+    hooks = Hooks(after_render=on_after)
+    await ait._prepare_messages(
+        template="{{ name }} hello",
+        hooks=hooks,
+        name="Alice",
+    )
+    assert len(captured) == 1
+    assert captured[0].prompt == "Alice hello"
+
+
+@pytest.mark.asyncio
+async def test_prepare_messages_works_without_hooks():
+    ait = _new_toolkit(prompt_formatter=Jinja2Adapter())
+    messages = await ait._prepare_messages(template="plain prompt")
+    assert messages == [{"role": "system", "content": "plain prompt"}]

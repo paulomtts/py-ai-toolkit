@@ -11,6 +11,7 @@ from py_ai_toolkit.core.domain.schemas import (
     SingleShotValidationConfig,
     ValidationConfig,
 )
+from py_ai_toolkit.core.hooks import AfterRenderContext, BeforeRenderContext, Hooks, _fire_hook
 from py_ai_toolkit.factories import (
     create_llm_client,
     create_model_handler,
@@ -85,7 +86,7 @@ class PyAIToolkit:
         """
         return self.model_handler.reduce_model_schema(model, include_description)
 
-    def _prepare_messages(self, template: str | None = None, **kwargs: Any) -> list:
+    async def _prepare_messages(self, template: str | None = None, hooks: Hooks | None = None, **kwargs: Any) -> list:
         try:
             is_path = os.path.exists(template)
         except Exception:
@@ -101,11 +102,23 @@ class PyAIToolkit:
             ):
                 kwargs[key] = [item.model_dump_json() for item in value]
 
+        if hooks:
+            await _fire_hook(
+                hooks.before_render,
+                BeforeRenderContext(template=template, kwargs=kwargs),
+            )
+
         final_prompt = self.prompt_formatter.render(
             path=template if is_path else None,
             prompt=template if not is_path else None,
             input=kwargs,
         )
+
+        if hooks:
+            await _fire_hook(
+                hooks.after_render,
+                AfterRenderContext(prompt=final_prompt),
+            )
 
         eval = kwargs.get("__evaluations__", None)
         if eval:
@@ -142,7 +155,7 @@ class PyAIToolkit:
         Returns:
             CompletionResponse: The response from the LLM with text content
         """
-        messages = self._prepare_messages(template, **kwargs)
+        messages = await self._prepare_messages(template, **kwargs)
         return await self.llm_client.chat(messages=messages)
 
     async def stream(
@@ -160,7 +173,7 @@ class PyAIToolkit:
         Returns:
             AsyncGenerator[CompletionResponse, None]: Stream of responses from the LLM
         """
-        messages = self._prepare_messages(template, **kwargs)
+        messages = await self._prepare_messages(template, **kwargs)
         async for response in self.llm_client.stream(messages=messages):
             yield response
 
@@ -184,7 +197,7 @@ class PyAIToolkit:
         client = self.llm_client
         if self.alternative_llm_clients:
             client = random.choice(self.alternative_llm_clients)
-        messages = self._prepare_messages(template, **kwargs)
+        messages = await self._prepare_messages(template, **kwargs)
         response = await client.asend(
             messages=messages,
             response_model=response_model,
