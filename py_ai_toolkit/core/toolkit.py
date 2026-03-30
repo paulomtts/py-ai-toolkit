@@ -301,6 +301,8 @@ class PyAIToolkit:
         kwargs: dict[str, Any],
         config: ValidationConfig = SingleShotValidationConfig(),
         echo: bool = False,
+        *,
+        hooks: "Hooks | None" = None,
     ) -> T:
         """
 
@@ -310,6 +312,7 @@ class PyAIToolkit:
             kwargs: The kwargs to pass to the task node.
             config: The validation configurations for the tree
             echo: Whether to echo the output.
+            hooks: Optional hooks to fire during execution.
 
         Returns:
             The output of the task.
@@ -320,6 +323,7 @@ class PyAIToolkit:
             ai_toolkit=self,
             error_class=WorkflowError,
             echo=echo,
+            hooks=hooks,
         )
         executor = await workflow.create_task_tree(
             template=template,

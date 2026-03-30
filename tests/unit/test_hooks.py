@@ -240,3 +240,93 @@ async def test_asend_fires_before_and_after_llm_hooks():
 
     assert len(after_captured) == 1
     assert after_captured[0].elapsed_ms >= 0
+
+
+from pydantic import BaseModel as PydanticBaseModel
+from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
+
+
+@pytest.mark.asyncio
+async def test_run_validations_fires_before_and_after_validation_hooks():
+    from py_ai_toolkit.core.base import BaseWorkflow
+    from py_ai_toolkit.core.domain.errors import WorkflowError
+
+    ait, _ = _new_toolkit_with_llm()
+    workflow = BaseWorkflow(ai_toolkit=ait, error_class=WorkflowError)
+
+    before_captured = []
+    after_captured = []
+
+    async def on_before(ctx: BeforeValidationContext):
+        before_captured.append(ctx)
+
+    async def on_after(ctx: AfterValidationContext):
+        after_captured.append(ctx)
+
+    hooks = Hooks(before_validation=on_before, after_validation=on_after)
+    workflow.hooks = hooks
+
+    # Create a mock task_node with output
+    mock_output = MagicMock(spec=PydanticBaseModel)
+    mock_output.model_dump_json = MagicMock(return_value='{}')
+    task_node = MagicMock()
+    task_node.output = mock_output
+    task_node.kwargs = {"response_model": type(mock_output)}
+
+    config = SingleShotValidationConfig(issues=["Is it correct?"])
+
+    # Mock _run_issue to return True (valid)
+    workflow._run_issue = AsyncMock(return_value=True)
+
+    result = await workflow._run_validations(
+        task_node=task_node,
+        config=config,
+    )
+
+    assert len(before_captured) == 1
+    assert before_captured[0].config is config
+
+    assert len(after_captured) == 1
+    assert after_captured[0].is_valid is True
+    assert after_captured[0].failure_reasons == []
+
+
+@pytest.mark.asyncio
+async def test_redirect_fires_on_retry_hook():
+    from py_ai_toolkit.core.base import BaseWorkflow
+    from py_ai_toolkit.core.domain.errors import WorkflowError
+    from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
+
+    ait, _ = _new_toolkit_with_llm()
+    workflow = BaseWorkflow(ai_toolkit=ait, error_class=WorkflowError)
+
+    retry_captured = []
+
+    async def on_retry(ctx: OnRetryContext):
+        retry_captured.append(ctx)
+
+    hooks = Hooks(on_retry=on_retry)
+    workflow.hooks = hooks
+
+    mock_output = MagicMock(spec=PydanticBaseModel)
+    mock_output.model_dump_json = MagicMock(return_value='{}')
+
+    task_node = MagicMock()
+    task_node.output = mock_output
+    task_node.kwargs = {}
+
+    validation_node = MagicMock()
+    validation_node.output = False  # failed validation
+    validation_node.redirect = AsyncMock()
+
+    config = SingleShotValidationConfig(issues=["check"], max_retries=3)
+
+    await workflow._redirect(
+        task_node=task_node,
+        validation_node=validation_node,
+        config=config,
+    )
+
+    assert len(retry_captured) == 1
+    assert retry_captured[0].current_retry == 1
+    assert retry_captured[0].max_retries == 3

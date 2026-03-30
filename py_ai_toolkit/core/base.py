@@ -13,6 +13,13 @@ from py_ai_toolkit.core.domain.schemas import (
     ValidationConfig,
 )
 from py_ai_toolkit.core.executors import IssueTreeExecutor
+from py_ai_toolkit.core.hooks import (
+    Hooks,
+    _fire_hook,
+    BeforeValidationContext,
+    AfterValidationContext,
+    OnRetryContext,
+)
 from py_ai_toolkit.core.toolkit import PyAIToolkit
 from py_ai_toolkit.core.utils import logger
 
@@ -31,10 +38,12 @@ class BaseWorkflow:
         ai_toolkit: PyAIToolkit,
         error_class: Type[Exception],
         echo: bool = False,
+        hooks: Hooks | None = None,
     ):
         self.ai_toolkit = ai_toolkit
         self.ErrorClass = error_class
         self.echo = echo
+        self.hooks = hooks
 
         # Stateful context
         self.current_retries = 0
@@ -161,6 +170,17 @@ class BaseWorkflow:
         ## Failure Reasonings
         {self.failure_reasonings}
         """
+
+        if self.hooks:
+            await _fire_hook(
+                self.hooks.on_retry,
+                OnRetryContext(
+                    current_retry=self.current_retries,
+                    max_retries=config.max_retries,
+                    evaluations=task_node.kwargs["__evaluations__"],
+                ),
+            )
+
         await validation_node.redirect([task_node])
 
     def _create_issue_node(
@@ -278,6 +298,15 @@ class BaseWorkflow:
         Returns:
             bool: Whether the issues passed
         """
+        if self.hooks:
+            await _fire_hook(
+                self.hooks.before_validation,
+                BeforeValidationContext(
+                    output=task_node.output,
+                    config=config,
+                ),
+            )
+
         issue_nodes: list[Node[bool]] = []
         for issue in config.issues:
             issue_node = Node[bool](
@@ -296,7 +325,21 @@ class BaseWorkflow:
             roots=issue_nodes,
         )  # ? REASON: run all subtrees concurrently
         await executor.run()
-        return all(bool(issue_node.output) for issue_node in issue_nodes)
+        result = all(bool(issue_node.output) for issue_node in issue_nodes)
+
+        if self.hooks:
+            failure_reasons = []
+            for issue, reasons in self.failure_reasonings.items():
+                failure_reasons.extend(reasons)
+            await _fire_hook(
+                self.hooks.after_validation,
+                AfterValidationContext(
+                    is_valid=result,
+                    failure_reasons=failure_reasons,
+                ),
+            )
+
+        return result
 
     async def create_task_tree(
         self,
