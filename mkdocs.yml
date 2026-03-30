@@ -47,6 +47,7 @@ nav:
       - Modes of Interaction: guide/modes.md
       - Workflows: guide/workflows.md
       - Running Tasks: guide/running-tasks.md
+      - Hooks: guide/hooks.md
   - API Reference:
       - PyAIToolkit: api/tools.md
       - BaseWorkflow: api/base-workflow.md
