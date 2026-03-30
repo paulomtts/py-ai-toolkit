@@ -1,5 +1,6 @@
 import os
 import random
+import time
 from typing import Any, AsyncGenerator, Type, TypeVar
 
 from pydantic import BaseModel
@@ -10,6 +11,11 @@ from py_ai_toolkit.core.domain.schemas import (
     LLMConfig,
     SingleShotValidationConfig,
     ValidationConfig,
+)
+from py_ai_toolkit.core.hooks import (
+    Hooks, _fire_hook,
+    BeforeRenderContext, AfterRenderContext,
+    BeforeLLMCallContext, AfterLLMCallContext,
 )
 from py_ai_toolkit.factories import (
     create_llm_client,
@@ -85,7 +91,7 @@ class PyAIToolkit:
         """
         return self.model_handler.reduce_model_schema(model, include_description)
 
-    def _prepare_messages(self, template: str | None = None, **kwargs: Any) -> list:
+    async def _prepare_messages(self, template: str | None = None, hooks: Hooks | None = None, **kwargs: Any) -> list:
         try:
             is_path = os.path.exists(template)
         except Exception:
@@ -101,11 +107,23 @@ class PyAIToolkit:
             ):
                 kwargs[key] = [item.model_dump_json() for item in value]
 
+        if hooks:
+            await _fire_hook(
+                hooks.before_render,
+                BeforeRenderContext(template=template, kwargs=kwargs),
+            )
+
         final_prompt = self.prompt_formatter.render(
             path=template if is_path else None,
             prompt=template if not is_path else None,
             input=kwargs,
         )
+
+        if hooks:
+            await _fire_hook(
+                hooks.after_render,
+                AfterRenderContext(prompt=final_prompt),
+            )
 
         eval = kwargs.get("__evaluations__", None)
         if eval:
@@ -130,6 +148,8 @@ class PyAIToolkit:
     async def chat(
         self,
         template: str | None = None,
+        *,
+        hooks: Hooks | None = None,
         **kwargs: Any,
     ) -> CompletionResponse:
         """
@@ -137,17 +157,45 @@ class PyAIToolkit:
 
         Args:
             path (str): The path to the prompt template file
+            hooks (Hooks | None): Optional hooks to fire before/after LLM call
             **kwargs: Additional arguments to pass to the prompt formatter
 
         Returns:
             CompletionResponse: The response from the LLM with text content
         """
-        messages = self._prepare_messages(template, **kwargs)
-        return await self.llm_client.chat(messages=messages)
+        messages = await self._prepare_messages(template, hooks=hooks, **kwargs)
+
+        if hooks:
+            await _fire_hook(
+                hooks.before_llm_call,
+                BeforeLLMCallContext(
+                    messages=messages,
+                    model=self.llm_client._model,
+                    response_model=None,
+                ),
+            )
+
+        start = time.perf_counter()
+        response = await self.llm_client.chat(messages=messages)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        if hooks:
+            await _fire_hook(
+                hooks.after_llm_call,
+                AfterLLMCallContext(
+                    response=response,
+                    model=self.llm_client._model,
+                    elapsed_ms=elapsed_ms,
+                ),
+            )
+
+        return response
 
     async def stream(
         self,
         template: str | None = None,
+        *,
+        hooks: Hooks | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[CompletionResponse, None]:
         """
@@ -155,19 +203,47 @@ class PyAIToolkit:
 
         Args:
             path (str): The path to the prompt template file
+            hooks (Hooks | None): Optional hooks to fire before/after LLM call
             **kwargs: Additional arguments to pass to the prompt formatter
 
         Returns:
             AsyncGenerator[CompletionResponse, None]: Stream of responses from the LLM
         """
-        messages = self._prepare_messages(template, **kwargs)
+        messages = await self._prepare_messages(template, hooks=hooks, **kwargs)
+
+        if hooks:
+            await _fire_hook(
+                hooks.before_llm_call,
+                BeforeLLMCallContext(
+                    messages=messages,
+                    model=self.llm_client._model,
+                    response_model=None,
+                ),
+            )
+
+        last_response = None
+        start = time.perf_counter()
         async for response in self.llm_client.stream(messages=messages):
+            last_response = response
             yield response
+
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        if hooks and last_response is not None:
+            await _fire_hook(
+                hooks.after_llm_call,
+                AfterLLMCallContext(
+                    response=last_response,
+                    model=self.llm_client._model,
+                    elapsed_ms=elapsed_ms,
+                ),
+            )
 
     async def asend(
         self,
         response_model: Type[T],
         template: str | None = None,
+        *,
+        hooks: Hooks | None = None,
         **kwargs: Any,
     ) -> CompletionResponse[T]:
         """
@@ -176,6 +252,7 @@ class PyAIToolkit:
         Args:
             response_model (Type[T]): The model to return the response as
             path (str): Path to the prompt template file
+            hooks (Hooks | None): Optional hooks to fire before/after LLM call
             **kwargs: Additional arguments to pass to the prompt formatter
 
         Returns:
@@ -184,11 +261,35 @@ class PyAIToolkit:
         client = self.llm_client
         if self.alternative_llm_clients:
             client = random.choice(self.alternative_llm_clients)
-        messages = self._prepare_messages(template, **kwargs)
+        messages = await self._prepare_messages(template, hooks=hooks, **kwargs)
+
+        if hooks:
+            await _fire_hook(
+                hooks.before_llm_call,
+                BeforeLLMCallContext(
+                    messages=messages,
+                    model=client._model,
+                    response_model=response_model,
+                ),
+            )
+
+        start = time.perf_counter()
         response = await client.asend(
             messages=messages,
             response_model=response_model,
         )
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        if hooks:
+            await _fire_hook(
+                hooks.after_llm_call,
+                AfterLLMCallContext(
+                    response=response,
+                    model=client._model,
+                    elapsed_ms=elapsed_ms,
+                ),
+            )
+
         if not isinstance(response.content, response_model):
             raise ValueError(
                 f"Response content is not an instance of {response_model.__name__}"
@@ -202,6 +303,8 @@ class PyAIToolkit:
         kwargs: dict[str, Any],
         config: ValidationConfig = SingleShotValidationConfig(),
         echo: bool = False,
+        *,
+        hooks: Hooks | None = None,
     ) -> T:
         """
 
@@ -211,6 +314,7 @@ class PyAIToolkit:
             kwargs: The kwargs to pass to the task node.
             config: The validation configurations for the tree
             echo: Whether to echo the output.
+            hooks: Optional hooks to fire during execution.
 
         Returns:
             The output of the task.
@@ -221,6 +325,7 @@ class PyAIToolkit:
             ai_toolkit=self,
             error_class=WorkflowError,
             echo=echo,
+            hooks=hooks,
         )
         executor = await workflow.create_task_tree(
             template=template,
