@@ -149,7 +149,7 @@ class BaseWorkflow:
             return
 
         self.current_retries += 1
-        if self.current_retries > config.max_retries:
+        if self.current_retries >= config.max_retries:
             raise self.ErrorClass(
                 message="Max retries reached.",
             )
