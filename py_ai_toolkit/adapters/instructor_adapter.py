@@ -95,14 +95,22 @@ class InstructorAdapter(LLMPort):
             model=self._model,
             messages=messages,  # type: ignore
             stream=True,
+            stream_options={"include_usage": True},
         )
+        last_chunk: ChatCompletionChunk | None = None
         async for chunk in output:
-            response = chunk.choices[0].delta.content
+            last_chunk = chunk
+            response = chunk.choices[0].delta.content if chunk.choices else None
             if not response:
                 continue
             yield CompletionResponse(
                 completion=chunk,
                 content=response,
+            )
+        if last_chunk is not None and last_chunk.usage is not None:
+            yield CompletionResponse(
+                completion=last_chunk,
+                content="",
             )
 
     async def asend(
