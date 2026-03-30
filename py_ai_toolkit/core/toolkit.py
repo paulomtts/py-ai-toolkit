@@ -221,16 +221,18 @@ class PyAIToolkit:
                 ),
             )
 
+        last_response = None
         start = time.perf_counter()
         async for response in self.llm_client.stream(messages=messages):
+            last_response = response
             yield response
 
         elapsed_ms = (time.perf_counter() - start) * 1000
-        if hooks:
+        if hooks and last_response is not None:
             await _fire_hook(
                 hooks.after_llm_call,
                 AfterLLMCallContext(
-                    response=response,
+                    response=last_response,
                     model=self.llm_client._model,
                     elapsed_ms=elapsed_ms,
                 ),
@@ -302,7 +304,7 @@ class PyAIToolkit:
         config: ValidationConfig = SingleShotValidationConfig(),
         echo: bool = False,
         *,
-        hooks: "Hooks | None" = None,
+        hooks: Hooks | None = None,
     ) -> T:
         """
 
