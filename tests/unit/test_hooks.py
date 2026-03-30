@@ -1,9 +1,13 @@
 import asyncio
 from dataclasses import FrozenInstanceError
-from typing import Any
+from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
+from openai.types.chat import ChatCompletion
+from pydantic import BaseModel as PydanticBaseModel
 
+from py_ai_toolkit.adapters import Jinja2Adapter
+from py_ai_toolkit.core.domain.schemas import CompletionResponse, SingleShotValidationConfig
 from py_ai_toolkit.core.hooks import (
     AfterLLMCallContext,
     AfterRenderContext,
@@ -108,11 +112,6 @@ def test_fire_hook_skips_none():
     asyncio.get_event_loop().run_until_complete(_fire_hook(None, "anything"))
 
 
-from unittest.mock import AsyncMock
-
-from py_ai_toolkit.adapters import Jinja2Adapter
-
-
 def _new_toolkit(*, prompt_formatter=None):
     from py_ai_toolkit.core.toolkit import PyAIToolkit
 
@@ -164,11 +163,6 @@ async def test_prepare_messages_works_without_hooks():
     ait = _new_toolkit(prompt_formatter=Jinja2Adapter())
     messages = await ait._prepare_messages(template="plain prompt")
     assert messages == [{"role": "system", "content": "plain prompt"}]
-
-
-from unittest.mock import MagicMock, create_autospec
-from openai.types.chat import ChatCompletion
-from py_ai_toolkit.core.domain.schemas import CompletionResponse
 
 
 def _new_toolkit_with_llm():
@@ -242,10 +236,6 @@ async def test_asend_fires_before_and_after_llm_hooks():
     assert after_captured[0].elapsed_ms >= 0
 
 
-from pydantic import BaseModel as PydanticBaseModel
-from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
-
-
 @pytest.mark.asyncio
 async def test_run_validations_fires_before_and_after_validation_hooks():
     from py_ai_toolkit.core.base import BaseWorkflow
@@ -278,7 +268,7 @@ async def test_run_validations_fires_before_and_after_validation_hooks():
     # Mock _run_issue to return True (valid)
     workflow._run_issue = AsyncMock(return_value=True)
 
-    result = await workflow._run_validations(
+    await workflow._run_validations(
         task_node=task_node,
         config=config,
     )
@@ -336,12 +326,6 @@ def test_hooks_exported_from_package():
     from py_ai_toolkit import Hooks
     from py_ai_toolkit.core.hooks import (
         BeforeRenderContext,
-        AfterRenderContext,
-        BeforeLLMCallContext,
-        AfterLLMCallContext,
-        BeforeValidationContext,
-        AfterValidationContext,
-        OnRetryContext,
     )
     assert Hooks is not None
     assert BeforeRenderContext is not None
