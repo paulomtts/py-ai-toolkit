@@ -3,7 +3,7 @@ from typing import AsyncGenerator, Type, TypeVar
 
 from pydantic import BaseModel
 
-from py_ai_toolkit.core.domain.schemas import CompletionResponse
+from py_ai_toolkit.core.domain.schemas import CompletionResponse, EmbeddingResponse
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -14,7 +14,7 @@ class LLMPort(ABC):
     """
 
     @abstractmethod
-    async def embed(self, text: str) -> list[float]:
+    async def embed(self, text: str) -> EmbeddingResponse:
         """
         Embeds text into a vector space.
         """

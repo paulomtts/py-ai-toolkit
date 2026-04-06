@@ -6,7 +6,12 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from py_ai_toolkit.core.domain.errors import LLMAdapterError
-from py_ai_toolkit.core.domain.schemas import CompletionResponse, S
+from py_ai_toolkit.core.domain.schemas import (
+    CompletionResponse,
+    EmbeddingResponse,
+    EmbeddingUsage,
+    S,
+)
 from py_ai_toolkit.core.ports import LLMPort
 
 
@@ -41,7 +46,7 @@ class InstructorAdapter(LLMPort):
             instructor_kwargs["reasoning_effort"] = reasoning_effort
         self.client = instructor.from_openai(**instructor_kwargs)
 
-    async def embed(self, text: str) -> list[float]:
+    async def embed(self, text: str) -> EmbeddingResponse:
         """
         Embeds text into a vector space.
         """
@@ -49,7 +54,13 @@ class InstructorAdapter(LLMPort):
             model=self._embedding_model,
             input=[text],
         )
-        return response.data[0].embedding
+        return EmbeddingResponse(
+            embedding=response.data[0].embedding,
+            usage=EmbeddingUsage(
+                prompt_tokens=response.usage.prompt_tokens,
+                total_tokens=response.usage.total_tokens,
+            ),
+        )
 
     async def chat(self, messages: list[dict[str, str]]) -> CompletionResponse:
         """
