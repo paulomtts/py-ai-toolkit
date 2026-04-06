@@ -3,7 +3,11 @@ from typing import Any, Awaitable, Callable, Type
 
 from pydantic import BaseModel
 
-from py_ai_toolkit.core.domain.schemas import CompletionResponse, EmbeddingUsage, ValidationConfig
+from py_ai_toolkit.core.domain.schemas import (
+    CompletionResponse,
+    EmbeddingUsage,
+    ValidationConfig,
+)
 
 
 @dataclass(frozen=True)

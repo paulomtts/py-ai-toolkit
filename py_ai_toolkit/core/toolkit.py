@@ -146,9 +146,7 @@ class PyAIToolkit:
             {"role": "system", "content": final_prompt},
         ]
 
-    async def embed(
-        self, text: str, *, hooks: Hooks | None = None
-    ) -> list[float]:
+    async def embed(self, text: str, *, hooks: Hooks | None = None) -> list[float]:
         """
         Embeds text into a vector space.
         """

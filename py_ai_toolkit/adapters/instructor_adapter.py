@@ -6,7 +6,12 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from py_ai_toolkit.core.domain.errors import LLMAdapterError
-from py_ai_toolkit.core.domain.schemas import CompletionResponse, EmbeddingResponse, EmbeddingUsage, S
+from py_ai_toolkit.core.domain.schemas import (
+    CompletionResponse,
+    EmbeddingResponse,
+    EmbeddingUsage,
+    S,
+)
 from py_ai_toolkit.core.ports import LLMPort
 
 
