@@ -3,7 +3,7 @@ from typing import Any, Awaitable, Callable, Type
 
 from pydantic import BaseModel
 
-from py_ai_toolkit.core.domain.schemas import CompletionResponse, ValidationConfig
+from py_ai_toolkit.core.domain.schemas import CompletionResponse, EmbeddingUsage, ValidationConfig
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,14 @@ class AfterLLMCallContext:
 
 
 @dataclass(frozen=True)
+class AfterEmbedContext:
+    embedding: list[float]
+    model: str
+    usage: EmbeddingUsage
+    elapsed_ms: float
+
+
+@dataclass(frozen=True)
 class BeforeValidationContext:
     output: BaseModel
     config: ValidationConfig
@@ -54,6 +62,7 @@ BeforeRenderHook = Callable[[BeforeRenderContext], Awaitable[None]]
 AfterRenderHook = Callable[[AfterRenderContext], Awaitable[None]]
 BeforeLLMCallHook = Callable[[BeforeLLMCallContext], Awaitable[None]]
 AfterLLMCallHook = Callable[[AfterLLMCallContext], Awaitable[None]]
+AfterEmbedHook = Callable[[AfterEmbedContext], Awaitable[None]]
 BeforeValidationHook = Callable[[BeforeValidationContext], Awaitable[None]]
 AfterValidationHook = Callable[[AfterValidationContext], Awaitable[None]]
 OnRetryHook = Callable[[OnRetryContext], Awaitable[None]]
@@ -65,6 +74,7 @@ class Hooks:
     after_render: AfterRenderHook | None = None
     before_llm_call: BeforeLLMCallHook | None = None
     after_llm_call: AfterLLMCallHook | None = None
+    after_embed: AfterEmbedHook | None = None
     before_validation: BeforeValidationHook | None = None
     after_validation: AfterValidationHook | None = None
     on_retry: OnRetryHook | None = None

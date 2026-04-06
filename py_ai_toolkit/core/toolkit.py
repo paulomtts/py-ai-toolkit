@@ -19,6 +19,7 @@ from py_ai_toolkit.core.hooks import (
     AfterRenderContext,
     BeforeLLMCallContext,
     AfterLLMCallContext,
+    AfterEmbedContext,
 )
 from py_ai_toolkit.factories import (
     create_llm_client,
@@ -145,11 +146,28 @@ class PyAIToolkit:
             {"role": "system", "content": final_prompt},
         ]
 
-    async def embed(self, text: str) -> list[float]:
+    async def embed(
+        self, text: str, *, hooks: Hooks | None = None
+    ) -> list[float]:
         """
         Embeds text into a vector space.
         """
-        return await self.llm_client.embed(text=text)
+        start = time.perf_counter()
+        response = await self.llm_client.embed(text=text)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        if hooks:
+            await _fire_hook(
+                hooks.after_embed,
+                AfterEmbedContext(
+                    embedding=response.embedding,
+                    model=self.llm_client._embedding_model,
+                    usage=response.usage,
+                    elapsed_ms=elapsed_ms,
+                ),
+            )
+
+        return response.embedding
 
     async def chat(
         self,

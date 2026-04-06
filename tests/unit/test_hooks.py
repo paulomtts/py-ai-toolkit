@@ -327,6 +327,84 @@ async def test_redirect_fires_on_retry_hook():
     assert retry_captured[0].max_retries == 3
 
 
+def test_after_embed_context_is_frozen():
+    from py_ai_toolkit.core.hooks import AfterEmbedContext
+    from py_ai_toolkit.core.domain.schemas import EmbeddingUsage
+
+    usage = EmbeddingUsage(prompt_tokens=10, total_tokens=10)
+    ctx = AfterEmbedContext(
+        embedding=[0.1, 0.2],
+        model="text-embedding-3-small",
+        usage=usage,
+        elapsed_ms=50.0,
+    )
+    assert ctx.embedding == [0.1, 0.2]
+    assert ctx.model == "text-embedding-3-small"
+    assert ctx.usage.total_tokens == 10
+    assert ctx.elapsed_ms == 50.0
+    with pytest.raises(FrozenInstanceError):
+        ctx.model = "other"
+
+
+def test_hooks_has_after_embed():
+    hooks = Hooks()
+    assert hooks.after_embed is None
+
+    async def my_hook(ctx):
+        pass
+
+    hooks = Hooks(after_embed=my_hook)
+    assert hooks.after_embed is my_hook
+
+
+@pytest.mark.asyncio
+async def test_embed_fires_after_embed_hook():
+    from py_ai_toolkit.core.hooks import AfterEmbedContext
+    from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
+
+    ait, _ = _new_toolkit_with_llm()
+
+    mock_usage = EmbeddingUsage(prompt_tokens=5, total_tokens=5)
+    mock_embed_response = EmbeddingResponse(
+        embedding=[0.1, 0.2, 0.3],
+        usage=mock_usage,
+    )
+    ait.llm_client.embed = AsyncMock(return_value=mock_embed_response)
+    ait.llm_client._embedding_model = "text-embedding-3-small"
+
+    captured = []
+
+    async def on_after_embed(ctx: AfterEmbedContext):
+        captured.append(ctx)
+
+    hooks = Hooks(after_embed=on_after_embed)
+    result = await ait.embed("hello world", hooks=hooks)
+
+    assert result == [0.1, 0.2, 0.3]
+    assert len(captured) == 1
+    assert captured[0].embedding == [0.1, 0.2, 0.3]
+    assert captured[0].usage.total_tokens == 5
+    assert captured[0].model == "text-embedding-3-small"
+    assert captured[0].elapsed_ms >= 0
+
+
+@pytest.mark.asyncio
+async def test_embed_without_hooks_returns_embedding():
+    from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
+
+    ait, _ = _new_toolkit_with_llm()
+
+    mock_usage = EmbeddingUsage(prompt_tokens=5, total_tokens=5)
+    mock_embed_response = EmbeddingResponse(
+        embedding=[0.1, 0.2, 0.3],
+        usage=mock_usage,
+    )
+    ait.llm_client.embed = AsyncMock(return_value=mock_embed_response)
+
+    result = await ait.embed("hello world")
+    assert result == [0.1, 0.2, 0.3]
+
+
 def test_hooks_exported_from_package():
     from py_ai_toolkit import Hooks
     from py_ai_toolkit.core.hooks import (

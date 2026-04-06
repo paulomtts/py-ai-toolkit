@@ -37,6 +37,20 @@ class CompletionResponse(BaseModel, Generic[S]):
         return self.content
 
 
+class EmbeddingUsage(BaseModel):
+    """Token usage data from an embedding request."""
+
+    prompt_tokens: int
+    total_tokens: int
+
+
+class EmbeddingResponse(BaseModel):
+    """Data model for embedding response."""
+
+    embedding: list[float]
+    usage: EmbeddingUsage
+
+
 class BaseValidationConfig(BaseModel):
     count: int = 1
     issues: list[str] = []
