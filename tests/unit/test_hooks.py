@@ -526,3 +526,9 @@ async def test_embed_batch_without_hook_does_not_fire():
     # Should not raise — no hook configured
     results = await ait.embed_batch(["hello"])
     assert len(results) == 1
+
+
+def test_embedding_response_exported_from_package():
+    from py_ai_toolkit import EmbeddingResponse
+
+    assert EmbeddingResponse is not None
