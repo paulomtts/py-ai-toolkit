@@ -21,6 +21,7 @@ from py_ai_toolkit.core.hooks import (
     BeforeLLMCallContext,
     AfterLLMCallContext,
     AfterEmbedContext,
+    AfterEmbedBatchContext,
 )
 from py_ai_toolkit.factories import (
     create_llm_client,
@@ -167,6 +168,30 @@ class PyAIToolkit:
             )
 
         return response
+
+    async def embed_batch(
+        self, texts: list[str], *, hooks: Hooks | None = None
+    ) -> list[EmbeddingResponse]:
+        """
+        Embeds multiple texts in a single API request.
+        """
+        start = time.perf_counter()
+        responses = await self.llm_client.embed_batch(texts=texts)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        if hooks and hooks.after_embed_batch:
+            await _fire_hook(
+                hooks.after_embed_batch,
+                AfterEmbedBatchContext(
+                    embeddings=[r.embedding for r in responses],
+                    model=self.llm_client._embedding_model,
+                    usage=responses[0].usage if responses else None,
+                    elapsed_ms=elapsed_ms,
+                    count=len(texts),
+                ),
+            )
+
+        return responses
 
     async def chat(
         self,

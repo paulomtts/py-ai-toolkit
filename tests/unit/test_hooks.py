@@ -449,3 +449,80 @@ def test_hooks_has_after_embed_batch():
 
     hooks = Hooks(after_embed_batch=my_hook)
     assert hooks.after_embed_batch is my_hook
+
+
+@pytest.mark.asyncio
+async def test_embed_batch_returns_list_of_embedding_responses():
+    from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
+
+    ait, _ = _new_toolkit_with_llm()
+
+    mock_usage = EmbeddingUsage(prompt_tokens=10, total_tokens=10)
+    mock_responses = [
+        EmbeddingResponse(embedding=[0.1, 0.2], usage=mock_usage),
+        EmbeddingResponse(embedding=[0.3, 0.4], usage=mock_usage),
+    ]
+    ait.llm_client.embed_batch = AsyncMock(return_value=mock_responses)
+
+    results = await ait.embed_batch(["hello", "world"])
+    assert len(results) == 2
+    assert results[0].embedding == [0.1, 0.2]
+    assert results[1].embedding == [0.3, 0.4]
+    assert results[0].usage.total_tokens == 10
+
+
+@pytest.mark.asyncio
+async def test_embed_batch_empty_list_returns_empty():
+    ait, _ = _new_toolkit_with_llm()
+    ait.llm_client.embed_batch = AsyncMock(return_value=[])
+
+    results = await ait.embed_batch([])
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_embed_batch_fires_after_embed_batch_hook():
+    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
+    from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
+
+    ait, _ = _new_toolkit_with_llm()
+
+    mock_usage = EmbeddingUsage(prompt_tokens=10, total_tokens=10)
+    mock_responses = [
+        EmbeddingResponse(embedding=[0.1, 0.2], usage=mock_usage),
+        EmbeddingResponse(embedding=[0.3, 0.4], usage=mock_usage),
+    ]
+    ait.llm_client.embed_batch = AsyncMock(return_value=mock_responses)
+    ait.llm_client._embedding_model = "text-embedding-3-small"
+
+    captured = []
+
+    async def on_after_batch(ctx: AfterEmbedBatchContext):
+        captured.append(ctx)
+
+    hooks = Hooks(after_embed_batch=on_after_batch)
+    await ait.embed_batch(["hello", "world"], hooks=hooks)
+
+    assert len(captured) == 1
+    assert captured[0].embeddings == [[0.1, 0.2], [0.3, 0.4]]
+    assert captured[0].model == "text-embedding-3-small"
+    assert captured[0].usage.total_tokens == 10
+    assert captured[0].count == 2
+    assert captured[0].elapsed_ms >= 0
+
+
+@pytest.mark.asyncio
+async def test_embed_batch_without_hook_does_not_fire():
+    from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
+
+    ait, _ = _new_toolkit_with_llm()
+
+    mock_usage = EmbeddingUsage(prompt_tokens=10, total_tokens=10)
+    mock_responses = [
+        EmbeddingResponse(embedding=[0.1, 0.2], usage=mock_usage),
+    ]
+    ait.llm_client.embed_batch = AsyncMock(return_value=mock_responses)
+
+    # Should not raise — no hook configured
+    results = await ait.embed_batch(["hello"])
+    assert len(results) == 1
