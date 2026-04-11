@@ -39,14 +39,16 @@ The toolkit fires hooks at seven points in the pipeline:
 
 ## Which Methods Support Which Hooks
 
-| Method | Render hooks | LLM hooks | Validation/retry hooks |
-|---|---|---|---|
-| `chat()` | Yes | Yes | -- |
-| `stream()` | Yes | Yes | -- |
-| `asend()` | Yes | Yes | -- |
-| `run_task()` | Yes | Yes | Yes |
+| Method | Render hooks | LLM hooks | Embed hooks | Validation/retry hooks |
+|---|---|---|---|---|
+| `chat()` | Yes | Yes | -- | -- |
+| `stream()` | Yes | Yes | -- | -- |
+| `asend()` | Yes | Yes | -- | -- |
+| `run_task()` | Yes | Yes | -- | Yes |
+| `embed()` | -- | -- | `after_embed` | -- |
+| `embed_batch()` | -- | -- | `after_embed_batch` | -- |
 
-Validation and retry hooks only fire in `run_task()` because that's where the validation loop lives. `embed()` does not support hooks.
+Validation and retry hooks only fire in `run_task()` because that's where the validation loop lives.
 
 ## The Hooks Container
 
@@ -60,6 +62,8 @@ hooks = Hooks(
     after_render=my_after_render,
     before_llm_call=my_before_llm,
     after_llm_call=my_after_llm,
+    after_embed=my_after_embed,
+    after_embed_batch=my_after_embed_batch,
     before_validation=my_before_val,
     after_validation=my_after_val,
     on_retry=my_on_retry,

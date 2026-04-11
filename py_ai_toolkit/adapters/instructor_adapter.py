@@ -62,6 +62,25 @@ class InstructorAdapter(LLMPort):
             ),
         )
 
+    async def embed_batch(self, texts: list[str]) -> list[EmbeddingResponse]:
+        """
+        Embeds multiple texts in a single API request.
+        """
+        response = await self.openai_client.embeddings.create(
+            model=self._embedding_model,
+            input=texts,
+        )
+        return [
+            EmbeddingResponse(
+                embedding=item.embedding,
+                usage=EmbeddingUsage(
+                    prompt_tokens=response.usage.prompt_tokens,
+                    total_tokens=response.usage.total_tokens,
+                ),
+            )
+            for item in response.data
+        ]
+
     async def chat(self, messages: list[dict[str, str]]) -> CompletionResponse:
         """
         Sends a message to the LLM and returns a structured response.

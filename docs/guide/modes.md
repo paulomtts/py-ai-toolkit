@@ -96,8 +96,16 @@ See [Running Tasks](running-tasks.md) for details on validation.
 Generate vector embeddings for semantic search or similarity:
 
 ```python
-vector = await ait.embed("Machine learning is fascinating")
-# Returns: list[float] with embedding dimensions
+response = await ait.embed("Machine learning is fascinating")
+vector = response.embedding  # list[float]
+usage = response.usage       # EmbeddingUsage with .prompt_tokens, .total_tokens
+```
+
+For batch operations (RAG ingestion, knowledge-graph grounding), use `embed_batch()` to send multiple texts in a single API request:
+
+```python
+responses = await ait.embed_batch(["Machine learning", "Deep learning", "NLP"])
+vectors = [r.embedding for r in responses]
 ```
 
 **Use when:**
@@ -115,7 +123,8 @@ vector = await ait.embed("Machine learning is fascinating")
 | `asend()` | Structured | No | No | Type-safe data extraction |
 | `stream()` | Text | No | Yes | Interactive UIs |
 | `run_task()` | Structured | Yes | No | Production workflows |
-| `embed()` | Vector | N/A | No | Semantic operations |
+| `embed()` | EmbeddingResponse | N/A | No | Single text embedding |
+| `embed_batch()` | list[EmbeddingResponse] | N/A | No | Batch text embedding |
 
 ## Alternative Models
 
