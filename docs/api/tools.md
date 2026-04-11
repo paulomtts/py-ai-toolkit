@@ -138,20 +138,47 @@ async for chunk in ait.stream(
 Generate embedding vector for text.
 
 ```python
-async def embed(text: str) -> list[float]
+async def embed(text: str, *, hooks: Hooks | None = None) -> EmbeddingResponse
 ```
 
 **Parameters:**
 
 - `text` (str): Text to embed
+- `hooks` (Hooks | None): Optional hooks (fires `after_embed`)
 
-**Returns:** List of floats representing the embedding vector
+**Returns:** `EmbeddingResponse` with `.embedding` (vector) and `.usage` (token data)
 
 **Example:**
 
 ```python
-vector = await ait.embed("Machine learning is fascinating")
-print(len(vector))  # Embedding dimension
+response = await ait.embed("Machine learning is fascinating")
+print(len(response.embedding))  # Embedding dimension
+print(response.usage.total_tokens)  # Token usage
+```
+
+---
+
+### embed_batch()
+
+Embed multiple texts in a single API request.
+
+```python
+async def embed_batch(texts: list[str], *, hooks: Hooks | None = None) -> list[EmbeddingResponse]
+```
+
+**Parameters:**
+
+- `texts` (list[str]): Texts to embed
+- `hooks` (Hooks | None): Optional hooks (fires `after_embed_batch`)
+
+**Returns:** List of `EmbeddingResponse`, one per input text, preserving order
+
+**Example:**
+
+```python
+responses = await ait.embed_batch(["Machine learning", "Deep learning", "NLP"])
+vectors = [r.embedding for r in responses]
+print(responses[0].usage.total_tokens)  # Aggregated usage across all inputs
 ```
 
 ---

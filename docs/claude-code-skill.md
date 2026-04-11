@@ -149,8 +149,23 @@ async for chunk in toolkit.stream(
 #### `embed()` — text embeddings
 
 ```python
-vector: list[float] = await toolkit.embed("some text")
+response: EmbeddingResponse = await toolkit.embed("some text")
+vector = response.embedding    # list[float]
+usage = response.usage         # EmbeddingUsage
 ```
+
+---
+
+#### `embed_batch()` — batch text embeddings
+
+```python
+responses: list[EmbeddingResponse] = await toolkit.embed_batch(["text one", "text two"])
+vectors = [r.embedding for r in responses]
+```
+
+- Embeds multiple texts in a single API request
+- Returns one `EmbeddingResponse` per input, preserving order
+- Usage is aggregated across all inputs (same on each response)
 
 ---
 
@@ -341,7 +356,7 @@ result = await workflow.run("I want 5 apples")
 ## Common mistakes to avoid
 
 - **Wrong import path**: validation configs live in `py_ai_toolkit.core.domain.schemas`, NOT `interfaces`
-- **Missing `await`**: `chat()`, `asend()`, `stream()`, `embed()`, `run_task()`, `task()`, `create_task_tree()`, and `build_task_node()` are all `async`
+- **Missing `await`**: `chat()`, `asend()`, `stream()`, `embed()`, `embed_batch()`, `run_task()`, `task()`, `create_task_tree()`, and `build_task_node()` are all `async`
 - **`run_task` kwargs**: pass as `kwargs=dict(...)`, not `**kwargs`
 - **`run_task` return**: returns the model instance directly, not a `CompletionResponse`
 - **`asend` return**: returns `CompletionResponse[T]`; access the model via `.content`
