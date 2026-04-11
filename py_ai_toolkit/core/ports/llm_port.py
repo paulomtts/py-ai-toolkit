@@ -21,6 +21,13 @@ class LLMPort(ABC):
         pass
 
     @abstractmethod
+    async def embed_batch(self, texts: list[str]) -> list[EmbeddingResponse]:
+        """
+        Embeds multiple texts in a single API request.
+        """
+        pass
+
+    @abstractmethod
     async def chat(self, messages: list[dict[str, str]]) -> CompletionResponse:
         """
         Sends a message to the LLM and returns a text response.
