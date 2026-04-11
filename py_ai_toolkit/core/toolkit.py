@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from py_ai_toolkit.core.domain.errors import WorkflowError
 from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
+    EmbeddingResponse,
     LLMConfig,
     SingleShotValidationConfig,
     ValidationConfig,
@@ -146,7 +147,7 @@ class PyAIToolkit:
             {"role": "system", "content": final_prompt},
         ]
 
-    async def embed(self, text: str, *, hooks: Hooks | None = None) -> list[float]:
+    async def embed(self, text: str, *, hooks: Hooks | None = None) -> EmbeddingResponse:
         """
         Embeds text into a vector space.
         """
@@ -165,7 +166,7 @@ class PyAIToolkit:
                 ),
             )
 
-        return response.embedding
+        return response
 
     async def chat(
         self,

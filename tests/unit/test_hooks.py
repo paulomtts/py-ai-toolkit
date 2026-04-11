@@ -380,7 +380,9 @@ async def test_embed_fires_after_embed_hook():
     hooks = Hooks(after_embed=on_after_embed)
     result = await ait.embed("hello world", hooks=hooks)
 
-    assert result == [0.1, 0.2, 0.3]
+    assert isinstance(result, EmbeddingResponse)
+    assert result.embedding == [0.1, 0.2, 0.3]
+    assert result.usage.total_tokens == 5
     assert len(captured) == 1
     assert captured[0].embedding == [0.1, 0.2, 0.3]
     assert captured[0].usage.total_tokens == 5
@@ -389,7 +391,7 @@ async def test_embed_fires_after_embed_hook():
 
 
 @pytest.mark.asyncio
-async def test_embed_without_hooks_returns_embedding():
+async def test_embed_without_hooks_returns_embedding_response():
     from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
 
     ait, _ = _new_toolkit_with_llm()
@@ -402,7 +404,9 @@ async def test_embed_without_hooks_returns_embedding():
     ait.llm_client.embed = AsyncMock(return_value=mock_embed_response)
 
     result = await ait.embed("hello world")
-    assert result == [0.1, 0.2, 0.3]
+    assert isinstance(result, EmbeddingResponse)
+    assert result.embedding == [0.1, 0.2, 0.3]
+    assert result.usage.prompt_tokens == 5
 
 
 def test_hooks_exported_from_package():
