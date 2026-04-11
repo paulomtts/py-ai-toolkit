@@ -417,3 +417,35 @@ def test_hooks_exported_from_package():
 
     assert Hooks is not None
     assert BeforeRenderContext is not None
+
+
+def test_after_embed_batch_context_is_frozen():
+    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
+    from py_ai_toolkit.core.domain.schemas import EmbeddingUsage
+
+    usage = EmbeddingUsage(prompt_tokens=20, total_tokens=20)
+    ctx = AfterEmbedBatchContext(
+        embeddings=[[0.1, 0.2], [0.3, 0.4]],
+        model="text-embedding-3-small",
+        usage=usage,
+        elapsed_ms=100.0,
+        count=2,
+    )
+    assert ctx.embeddings == [[0.1, 0.2], [0.3, 0.4]]
+    assert ctx.model == "text-embedding-3-small"
+    assert ctx.usage.total_tokens == 20
+    assert ctx.elapsed_ms == 100.0
+    assert ctx.count == 2
+    with pytest.raises(FrozenInstanceError):
+        ctx.model = "other"
+
+
+def test_hooks_has_after_embed_batch():
+    hooks = Hooks()
+    assert hooks.after_embed_batch is None
+
+    async def my_hook(ctx):
+        pass
+
+    hooks = Hooks(after_embed_batch=my_hook)
+    assert hooks.after_embed_batch is my_hook

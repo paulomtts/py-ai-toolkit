@@ -44,6 +44,15 @@ class AfterEmbedContext:
 
 
 @dataclass(frozen=True)
+class AfterEmbedBatchContext:
+    embeddings: list[list[float]]
+    model: str
+    usage: EmbeddingUsage | None
+    elapsed_ms: float
+    count: int
+
+
+@dataclass(frozen=True)
 class BeforeValidationContext:
     output: BaseModel
     config: ValidationConfig
@@ -67,6 +76,7 @@ AfterRenderHook = Callable[[AfterRenderContext], Awaitable[None]]
 BeforeLLMCallHook = Callable[[BeforeLLMCallContext], Awaitable[None]]
 AfterLLMCallHook = Callable[[AfterLLMCallContext], Awaitable[None]]
 AfterEmbedHook = Callable[[AfterEmbedContext], Awaitable[None]]
+AfterEmbedBatchHook = Callable[[AfterEmbedBatchContext], Awaitable[None]]
 BeforeValidationHook = Callable[[BeforeValidationContext], Awaitable[None]]
 AfterValidationHook = Callable[[AfterValidationContext], Awaitable[None]]
 OnRetryHook = Callable[[OnRetryContext], Awaitable[None]]
@@ -79,6 +89,7 @@ class Hooks:
     before_llm_call: BeforeLLMCallHook | None = None
     after_llm_call: AfterLLMCallHook | None = None
     after_embed: AfterEmbedHook | None = None
+    after_embed_batch: AfterEmbedBatchHook | None = None
     before_validation: BeforeValidationHook | None = None
     after_validation: AfterValidationHook | None = None
     on_retry: OnRetryHook | None = None
