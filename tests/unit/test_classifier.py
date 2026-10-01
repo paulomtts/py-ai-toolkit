@@ -19,6 +19,7 @@ from py_ai_toolkit.core.domain.classifier import (
     ScoreQuestion,
     validate_question_names,
 )
+from py_ai_toolkit.core.domain.errors import ClassifierAdapterError, LLMAdapterError
 
 JSON_FORMS = ["plain text", {"rule": "is spam", "examples": [1, 2]}, ["a", "b"], None]
 
@@ -343,3 +344,35 @@ def test_classifier_config_stores_explicit_values():
     assert config.api_key == "key"
     assert config.model == "jev-2026-09"
     assert config.base_url == "https://jev.example"
+
+
+# --- ClassifierAdapterError ---
+
+
+def test_classifier_adapter_error_carries_message():
+    err = ClassifierAdapterError("boom")
+
+    assert err.message == "boom"
+    assert str(err) == "boom"
+    assert ClassifierAdapterError().message == ""
+    assert isinstance(err, Exception)
+    assert not isinstance(err, LLMAdapterError)
+    with pytest.raises(Exception) as caught:
+        raise ClassifierAdapterError("raised")
+    assert caught.value.message == "raised"
+
+
+def test_classifier_adapter_error_keeps_cause_and_escapes_llm_handler():
+    cause = RuntimeError("sdk failure")
+
+    with pytest.raises(ClassifierAdapterError) as caught:
+        try:
+            try:
+                raise cause
+            except RuntimeError as exc:
+                raise ClassifierAdapterError("Jev request failed") from exc
+        except LLMAdapterError:
+            pytest.fail("ClassifierAdapterError must not be caught as LLMAdapterError")
+
+    assert caught.value.__cause__ is cause
+    assert caught.value.message == "Jev request failed"
