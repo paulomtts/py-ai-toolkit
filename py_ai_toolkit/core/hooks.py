@@ -116,6 +116,8 @@ class Hooks:
     before_validation: BeforeValidationHook | None = None
     after_validation: AfterValidationHook | None = None
     on_retry: OnRetryHook | None = None
+    before_classify: BeforeClassifyHook | None = None
+    after_classify: AfterClassifyHook | None = None
 
 
 async def _fire_hook(hook: Callable | None, ctx: Any) -> None:

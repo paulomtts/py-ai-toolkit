@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields
 from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
@@ -196,6 +196,65 @@ def test_hooks_accepts_callbacks():
     assert hooks.before_render is my_hook
     assert hooks.after_llm_call is my_hook
     assert hooks.after_render is None
+
+
+def test_hooks_classify_fields_default_to_none():
+    hooks = Hooks()
+    assert hooks.before_classify is None
+    assert hooks.after_classify is None
+
+
+def test_hooks_accepts_classify_callbacks():
+    async def on_before(ctx):
+        pass
+
+    async def on_after(ctx):
+        pass
+
+    hooks = Hooks(
+        before_classify=on_before,
+        after_classify=on_after,
+        after_embed=on_after,
+    )
+    assert hooks.before_classify is on_before
+    assert hooks.after_classify is on_after
+    assert hooks.after_embed is on_after
+    assert hooks.after_render is None
+    assert hooks.on_retry is None
+
+
+def test_hooks_existing_construction_unaffected():
+    async def first(ctx):
+        pass
+
+    async def second(ctx):
+        pass
+
+    keyword = Hooks(before_render=first, after_llm_call=second)
+    assert keyword.before_render is first
+    assert keyword.after_llm_call is second
+    assert keyword.before_classify is None
+    assert keyword.after_classify is None
+
+    positional = Hooks(first, second)
+    assert positional.before_render is first
+    assert positional.after_render is second
+    assert positional.before_classify is None
+    assert positional.after_classify is None
+
+    assert [f.name for f in fields(Hooks)] == [
+        "before_render",
+        "after_render",
+        "before_llm_call",
+        "after_llm_call",
+        "after_embed",
+        "after_embed_batch",
+        "before_validation",
+        "after_validation",
+        "on_retry",
+        "before_classify",
+        "after_classify",
+    ]
 
 
 def test_fire_hook_calls_callback():
