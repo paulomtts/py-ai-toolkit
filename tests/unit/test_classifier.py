@@ -1,6 +1,9 @@
+import importlib.util
+
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
+from py_ai_toolkit.core.domain import classifier as classifier_module
 from py_ai_toolkit.core.domain.classifier import (
     Answer,
     ChoiceAnswer,
@@ -301,6 +304,25 @@ def test_classifier_config_ignores_env_vars(monkeypatch):
     monkeypatch.setenv("CLASSIFIER_BASE_URL", "https://env.example")
 
     config = ClassifierConfig()
+
+    assert config.api_key is None
+    assert config.model is None
+    assert config.base_url is None
+
+
+def test_classifier_config_has_no_env_defaults_at_import(monkeypatch):
+    monkeypatch.setenv("CLASSIFIER_API_KEY", "env-key")
+    monkeypatch.setenv("CLASSIFIER_MODEL", "env-model")
+    monkeypatch.setenv("CLASSIFIER_BASE_URL", "https://env.example")
+    # A class-body os.getenv default runs at import, so execute a fresh copy
+    # of the module with the env already set.
+    spec = importlib.util.spec_from_file_location(
+        "_fresh_classifier", classifier_module.__file__
+    )
+    fresh = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fresh)
+
+    config = fresh.ClassifierConfig()
 
     assert config.api_key is None
     assert config.model is None
