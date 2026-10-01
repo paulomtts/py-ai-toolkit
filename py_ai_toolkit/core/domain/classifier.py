@@ -43,9 +43,7 @@ Question = Annotated[
 def _check_names(names: Iterable[object]) -> None:
     for name in names:
         if not isinstance(name, str) or name == "":
-            raise ValueError(
-                f"Question names must be non-empty strings; got {name!r}."
-            )
+            raise ValueError(f"Question names must be non-empty strings; got {name!r}.")
 
 
 def validate_question_names(questions: Mapping[str, Question]) -> None:
