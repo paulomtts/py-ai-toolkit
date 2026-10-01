@@ -1,8 +1,10 @@
+import asyncio
 import importlib.util
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
+from py_ai_toolkit.core import ports as ports_package
 from py_ai_toolkit.core.domain import classifier as classifier_module
 from py_ai_toolkit.core.domain.classifier import (
     Answer,
@@ -20,6 +22,8 @@ from py_ai_toolkit.core.domain.classifier import (
     validate_question_names,
 )
 from py_ai_toolkit.core.domain.errors import ClassifierAdapterError, LLMAdapterError
+from py_ai_toolkit.core.ports.classifier_port import ClassifierPort
+from py_ai_toolkit.core.ports.llm_port import LLMPort
 
 JSON_FORMS = ["plain text", {"rule": "is spam", "examples": [1, 2]}, ["a", "b"], None]
 
@@ -376,3 +380,92 @@ def test_classifier_adapter_error_keeps_cause_and_escapes_llm_handler():
 
     assert caught.value.__cause__ is cause
     assert caught.value.message == "Jev request failed"
+
+
+# --- ClassifierPort ---
+
+
+def run(coro):
+    # asyncio.run() unsets the thread's current event loop on exit, which breaks
+    # test_hooks.py's get_event_loop() calls; use a private loop instead.
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+FIXED_RESPONSE = ClassifierResponse(
+    model="fake-classifier",
+    answers={"q": NoulAnswer(noul=0.5)},
+    usage=ClassifierUsage(input_tokens=3, output_tokens=1),
+)
+
+
+class MinimalClassifier(ClassifierPort):
+    async def classify(self, state, questions):
+        self.received = (state, questions)
+        return FIXED_RESPONSE
+
+
+def test_classifier_port_cannot_be_instantiated_without_classify():
+    class EmptyClassifier(ClassifierPort):
+        pass
+
+    with pytest.raises(TypeError):
+        ClassifierPort()
+    with pytest.raises(TypeError):
+        EmptyClassifier()
+
+
+def test_classifier_port_minimal_subclass_classifies():
+    classifier = MinimalClassifier()
+
+    result = run(classifier.classify("state", {"q": NoulQuestion()}))
+
+    assert result is FIXED_RESPONSE
+
+
+@pytest.mark.parametrize("state", JSON_FORMS[:3])
+def test_classifier_port_passes_state_and_questions_through(state):
+    classifier = MinimalClassifier()
+    questions = {
+        "is_spam": NoulQuestion(),
+        "topic": ChoiceQuestion(criteria={"a": None}),
+    }
+
+    run(classifier.classify(state, questions))
+
+    received_state, received_questions = classifier.received
+    assert received_state is state
+    assert received_questions is questions
+
+
+def test_classifier_port_aclose_default_is_noop():
+    classifier = MinimalClassifier()
+
+    assert run(classifier.aclose()) is None
+
+
+def test_classifier_port_aclose_override_is_used():
+    class ClosingClassifier(MinimalClassifier):
+        async def aclose(self):
+            self.closed = True
+
+    classifier = ClosingClassifier()
+
+    run(classifier.aclose())
+
+    assert classifier.closed is True
+
+
+def test_classifier_port_is_separate_from_llm_port():
+    assert ClassifierPort.__abstractmethods__ == frozenset({"classify"})
+    assert not issubclass(ClassifierPort, LLMPort)
+    for name in ("chat", "stream", "embed", "embed_batch", "asend"):
+        assert not hasattr(ClassifierPort, name)
+
+
+def test_classifier_port_exported_from_ports_package():
+    assert ports_package.ClassifierPort is ClassifierPort
+    assert "ClassifierPort" in ports_package.__all__
