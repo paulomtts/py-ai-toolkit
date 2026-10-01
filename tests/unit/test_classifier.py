@@ -1,5 +1,9 @@
 import asyncio
 import importlib.util
+import inspect
+import typing
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -404,7 +408,6 @@ FIXED_RESPONSE = ClassifierResponse(
 
 class MinimalClassifier(ClassifierPort):
     async def classify(self, state, questions):
-        self.received = (state, questions)
         return FIXED_RESPONSE
 
 
@@ -426,37 +429,22 @@ def test_classifier_port_minimal_subclass_classifies():
     assert result is FIXED_RESPONSE
 
 
-@pytest.mark.parametrize("state", JSON_FORMS[:3])
-def test_classifier_port_passes_state_and_questions_through(state):
-    classifier = MinimalClassifier()
-    questions = {
-        "is_spam": NoulQuestion(),
-        "topic": ChoiceQuestion(criteria={"a": None}),
-    }
+def test_classifier_port_classify_signature_is_pinned():
+    hints = typing.get_type_hints(ClassifierPort.classify, include_extras=True)
+    params = list(inspect.signature(ClassifierPort.classify).parameters)
 
-    run(classifier.classify(state, questions))
-
-    received_state, received_questions = classifier.received
-    assert received_state is state
-    assert received_questions is questions
+    assert params == ["self", "state", "questions"]
+    assert hints["state"] == str | dict[str, Any] | list[Any]
+    assert hints["questions"] == Mapping[str, Question]
+    assert hints["return"] is ClassifierResponse
+    assert inspect.iscoroutinefunction(ClassifierPort.classify)
+    assert inspect.iscoroutinefunction(ClassifierPort.aclose)
 
 
 def test_classifier_port_aclose_default_is_noop():
     classifier = MinimalClassifier()
 
     assert run(classifier.aclose()) is None
-
-
-def test_classifier_port_aclose_override_is_used():
-    class ClosingClassifier(MinimalClassifier):
-        async def aclose(self):
-            self.closed = True
-
-    classifier = ClosingClassifier()
-
-    run(classifier.aclose())
-
-    assert classifier.closed is True
 
 
 def test_classifier_port_is_separate_from_llm_port():
