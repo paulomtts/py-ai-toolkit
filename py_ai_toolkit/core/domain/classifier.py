@@ -115,3 +115,11 @@ class ClassifierResponse(BaseModel):
             for name, answer in self.answers.items()
             if isinstance(answer, ScoreAnswer)
         }
+
+
+class ClassifierConfig(BaseModel):
+    """Classifier settings. Env vars are resolved by the facade, never here."""
+
+    api_key: str | None = None
+    model: str | None = None
+    base_url: str | None = None

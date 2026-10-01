@@ -5,6 +5,7 @@ from py_ai_toolkit.core.domain.classifier import (
     Answer,
     ChoiceAnswer,
     ChoiceQuestion,
+    ClassifierConfig,
     ClassifierResponse,
     ClassifierUsage,
     NoulAnswer,
@@ -289,3 +290,28 @@ def test_response_rejects_empty_answer_name():
         ClassifierResponse(
             model="jev-latest", answers={"": NOUL_ANSWER}, usage=ClassifierUsage()
         )
+
+
+# Config
+
+
+def test_classifier_config_ignores_env_vars(monkeypatch):
+    monkeypatch.setenv("CLASSIFIER_API_KEY", "env-key")
+    monkeypatch.setenv("CLASSIFIER_MODEL", "env-model")
+    monkeypatch.setenv("CLASSIFIER_BASE_URL", "https://env.example")
+
+    config = ClassifierConfig()
+
+    assert config.api_key is None
+    assert config.model is None
+    assert config.base_url is None
+
+
+def test_classifier_config_stores_explicit_values():
+    config = ClassifierConfig(
+        api_key="key", model="jev-2026-09", base_url="https://jev.example"
+    )
+
+    assert config.api_key == "key"
+    assert config.model == "jev-2026-09"
+    assert config.base_url == "https://jev.example"
