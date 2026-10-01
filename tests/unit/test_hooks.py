@@ -7,14 +7,23 @@ from openai.types.chat import ChatCompletion
 from pydantic import BaseModel as PydanticBaseModel
 
 from py_ai_toolkit.adapters import Jinja2Adapter
+from py_ai_toolkit.core.domain.classifier import (
+    ChoiceQuestion,
+    ClassifierResponse,
+    ClassifierUsage,
+    NoulAnswer,
+    NoulQuestion,
+)
 from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
     SingleShotValidationConfig,
 )
 from py_ai_toolkit.core.hooks import (
+    AfterClassifyContext,
     AfterLLMCallContext,
     AfterRenderContext,
     AfterValidationContext,
+    BeforeClassifyContext,
     BeforeLLMCallContext,
     BeforeRenderContext,
     BeforeValidationContext,
@@ -76,6 +85,96 @@ def test_on_retry_context_is_frozen():
     assert ctx.current_retry == 1
     with pytest.raises(FrozenInstanceError):
         ctx.current_retry = 2
+
+
+def _classifier_response(usage: ClassifierUsage) -> ClassifierResponse:
+    return ClassifierResponse(
+        model="jev-1",
+        answers={"q": NoulAnswer(noul=0.5)},
+        usage=usage,
+    )
+
+
+def test_before_classify_context_is_frozen():
+    ctx = BeforeClassifyContext(
+        state="some text",
+        questions={"q": NoulQuestion()},
+        model="jev-1",
+    )
+    for name, value in (("state", "other"), ("questions", {}), ("model", "other")):
+        with pytest.raises(FrozenInstanceError):
+            setattr(ctx, name, value)
+
+
+def test_before_classify_context_holds_fields():
+    questions = {
+        "q": NoulQuestion(),
+        "c": ChoiceQuestion(criteria={"yes": None, "no": "not at all"}),
+    }
+
+    text_ctx = BeforeClassifyContext(
+        state="some text", questions=questions, model="jev-1"
+    )
+    assert text_ctx.state == "some text"
+    assert text_ctx.questions is questions
+    assert text_ctx.model == "jev-1"
+
+    dict_ctx = BeforeClassifyContext(
+        state={"ticket": "refund please"}, questions=questions, model="jev-1"
+    )
+    assert dict_ctx.state == {"ticket": "refund please"}
+
+    list_ctx = BeforeClassifyContext(
+        state=["turn 1", {"turn": 2}], questions=questions, model="jev-1"
+    )
+    assert list_ctx.state == ["turn 1", {"turn": 2}]
+
+
+def test_after_classify_context_is_frozen():
+    usage = ClassifierUsage(input_tokens=12, output_tokens=3)
+    ctx = AfterClassifyContext(
+        response=_classifier_response(usage),
+        model="jev-1",
+        elapsed_ms=42.0,
+        usage=usage,
+    )
+    for name, value in (
+        ("response", None),
+        ("model", "other"),
+        ("elapsed_ms", 0.0),
+        ("usage", ClassifierUsage()),
+    ):
+        with pytest.raises(FrozenInstanceError):
+            setattr(ctx, name, value)
+
+
+def test_after_classify_context_carries_usage():
+    usage = ClassifierUsage(input_tokens=12, output_tokens=3)
+    ctx = AfterClassifyContext(
+        response=_classifier_response(usage),
+        model="jev-1",
+        elapsed_ms=42.0,
+        usage=usage,
+    )
+    assert ctx.model == "jev-1"
+    assert ctx.elapsed_ms == 42.0
+    assert ctx.response.answers["q"].noul == 0.5
+    assert ctx.usage.input_tokens == 12
+    assert ctx.usage.output_tokens == 3
+    assert ctx.response.usage.input_tokens == 12
+    assert ctx.response.usage.output_tokens == 3
+
+
+def test_after_classify_context_accepts_unreported_usage():
+    usage = ClassifierUsage()
+    ctx = AfterClassifyContext(
+        response=_classifier_response(usage),
+        model="jev-1",
+        elapsed_ms=1.5,
+        usage=usage,
+    )
+    assert ctx.usage.input_tokens is None
+    assert ctx.usage.output_tokens is None
 
 
 def test_hooks_defaults_to_none():

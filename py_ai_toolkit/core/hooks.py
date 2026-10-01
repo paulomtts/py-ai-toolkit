@@ -1,8 +1,14 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Type
 
 from pydantic import BaseModel
 
+from py_ai_toolkit.core.domain.classifier import (
+    ClassifierResponse,
+    ClassifierUsage,
+    Question,
+)
 from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
     EmbeddingUsage,
@@ -71,6 +77,21 @@ class OnRetryContext:
     evaluations: str
 
 
+@dataclass(frozen=True)
+class BeforeClassifyContext:
+    state: str | dict[str, Any] | list[Any]
+    questions: Mapping[str, Question]
+    model: str
+
+
+@dataclass(frozen=True)
+class AfterClassifyContext:
+    response: ClassifierResponse
+    model: str
+    elapsed_ms: float
+    usage: ClassifierUsage
+
+
 BeforeRenderHook = Callable[[BeforeRenderContext], Awaitable[None]]
 AfterRenderHook = Callable[[AfterRenderContext], Awaitable[None]]
 BeforeLLMCallHook = Callable[[BeforeLLMCallContext], Awaitable[None]]
@@ -80,6 +101,8 @@ AfterEmbedBatchHook = Callable[[AfterEmbedBatchContext], Awaitable[None]]
 BeforeValidationHook = Callable[[BeforeValidationContext], Awaitable[None]]
 AfterValidationHook = Callable[[AfterValidationContext], Awaitable[None]]
 OnRetryHook = Callable[[OnRetryContext], Awaitable[None]]
+BeforeClassifyHook = Callable[[BeforeClassifyContext], Awaitable[None]]
+AfterClassifyHook = Callable[[AfterClassifyContext], Awaitable[None]]
 
 
 @dataclass
