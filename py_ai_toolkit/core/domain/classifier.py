@@ -7,7 +7,7 @@ Values are stored raw; nothing is normalized or derived.
 from collections.abc import Iterable, Mapping
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 JSONContent = str | dict[str, Any] | list[Any]
 
@@ -51,3 +51,67 @@ def _check_names(names: Iterable[object]) -> None:
 def validate_question_names(questions: Mapping[str, Question]) -> None:
     """Raise ValueError unless every question name is a non-empty str."""
     _check_names(questions)
+
+
+class NoulAnswer(BaseModel):
+    type: Literal["noul"] = "noul"
+    noul: float
+
+
+class ChoiceAnswer(BaseModel):
+    type: Literal["choice"] = "choice"
+    choice: str
+    probabilities: dict[str, float]
+    confidence: float
+
+
+class ScoreAnswer(BaseModel):
+    type: Literal["score"] = "score"
+    score: float
+    probabilities: dict[int, float]
+    confidence: float
+    legend: dict[int, JSONContent]
+
+
+Answer = Annotated[NoulAnswer | ChoiceAnswer | ScoreAnswer, Field(discriminator="type")]
+
+
+class ClassifierUsage(BaseModel):
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+
+
+class ClassifierResponse(BaseModel):
+    model: str
+    answers: dict[str, Answer]
+    usage: ClassifierUsage
+
+    @field_validator("answers")
+    @classmethod
+    def check_answer_names(cls, answers: dict[str, Answer]) -> dict[str, Answer]:
+        _check_names(answers)
+        return answers
+
+    @property
+    def nouls(self) -> dict[str, NoulAnswer]:
+        return {
+            name: answer
+            for name, answer in self.answers.items()
+            if isinstance(answer, NoulAnswer)
+        }
+
+    @property
+    def choices(self) -> dict[str, ChoiceAnswer]:
+        return {
+            name: answer
+            for name, answer in self.answers.items()
+            if isinstance(answer, ChoiceAnswer)
+        }
+
+    @property
+    def scores(self) -> dict[str, ScoreAnswer]:
+        return {
+            name: answer
+            for name, answer in self.answers.items()
+            if isinstance(answer, ScoreAnswer)
+        }

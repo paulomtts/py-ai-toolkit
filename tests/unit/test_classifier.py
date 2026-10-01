@@ -2,10 +2,16 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from py_ai_toolkit.core.domain.classifier import (
+    Answer,
+    ChoiceAnswer,
     ChoiceQuestion,
+    ClassifierResponse,
+    ClassifierUsage,
+    NoulAnswer,
     NoulCriteria,
     NoulQuestion,
     Question,
+    ScoreAnswer,
     ScoreQuestion,
     validate_question_names,
 )
@@ -158,3 +164,128 @@ def test_validate_question_names_accepts_whitespace_name_as_given():
 
 def test_validate_question_names_accepts_empty_mapping():
     validate_question_names({})
+
+
+# Answer discriminator
+
+NOUL_ANSWER = {"type": "noul", "noul": 0.82}
+CHOICE_ANSWER = {
+    "type": "choice",
+    "choice": "billing",
+    "probabilities": {"billing": 0.7, "support": 0.3},
+    "confidence": 0.64,
+}
+SCORE_ANSWER = {
+    "type": "score",
+    "score": 2.4,
+    "probabilities": {1: 0.1, 2: 0.4, 3: 0.5},
+    "confidence": 0.5,
+    "legend": {1: "low", 2: {"label": "mid"}, 3: ["high"]},
+}
+
+
+def test_answer_adapter_parses_each_type_tag():
+    adapter = TypeAdapter(Answer)
+
+    noul = adapter.validate_python(NOUL_ANSWER)
+    choice = adapter.validate_python(CHOICE_ANSWER)
+    score = adapter.validate_python(SCORE_ANSWER)
+
+    assert isinstance(noul, NoulAnswer)
+    assert noul.noul == 0.82
+    assert isinstance(choice, ChoiceAnswer)
+    assert choice.choice == "billing"
+    assert choice.probabilities == {"billing": 0.7, "support": 0.3}
+    assert choice.confidence == 0.64
+    assert isinstance(score, ScoreAnswer)
+    assert score.score == 2.4
+    assert score.probabilities == {1: 0.1, 2: 0.4, 3: 0.5}
+    assert score.legend == {1: "low", 2: {"label": "mid"}, 3: ["high"]}
+
+
+def test_answer_without_type_tag_is_rejected():
+    with pytest.raises(ValidationError):
+        TypeAdapter(Answer).validate_python({"noul": 0.5})
+
+
+def test_noul_answer_has_no_confidence():
+    answer = NoulAnswer.model_validate({"noul": 0.4, "confidence": 0.9})
+
+    assert "confidence" not in NoulAnswer.model_fields
+    assert not hasattr(answer, "confidence")
+
+
+def test_score_answer_coerces_string_level_keys_to_int():
+    answer = ScoreAnswer.model_validate(
+        {
+            "score": 1.5,
+            "probabilities": {"1": 0.5, "2": 0.5},
+            "confidence": 0.5,
+            "legend": {"1": "low", "2": "high"},
+        }
+    )
+
+    assert answer.probabilities == {1: 0.5, 2: 0.5}
+    assert answer.legend == {1: "low", 2: "high"}
+
+
+def test_answers_store_raw_values_without_range_checks():
+    noul = NoulAnswer(noul=1.7)
+    choice = ChoiceAnswer(
+        choice="a", probabilities={"a": 0.9, "b": 0.9}, confidence=-0.2
+    )
+
+    assert noul.noul == 1.7
+    assert choice.probabilities == {"a": 0.9, "b": 0.9}
+    assert choice.confidence == -0.2
+
+
+# Response parsing and accessors
+
+
+def test_response_accessors_filter_answers_by_type():
+    response = ClassifierResponse.model_validate(
+        {
+            "model": "jev-latest",
+            "answers": {
+                "is_spam": NOUL_ANSWER,
+                "topic": CHOICE_ANSWER,
+                "urgency": SCORE_ANSWER,
+                "is_question": {"type": "noul", "noul": 0.1},
+            },
+            "usage": {"input_tokens": 120, "output_tokens": 4},
+        }
+    )
+
+    assert response.model == "jev-latest"
+    assert set(response.nouls) == {"is_spam", "is_question"}
+    assert all(isinstance(a, NoulAnswer) for a in response.nouls.values())
+    assert response.nouls["is_spam"].noul == 0.82
+    assert set(response.choices) == {"topic"}
+    assert isinstance(response.choices["topic"], ChoiceAnswer)
+    assert set(response.scores) == {"urgency"}
+    assert isinstance(response.scores["urgency"], ScoreAnswer)
+    assert response.usage == ClassifierUsage(input_tokens=120, output_tokens=4)
+
+
+def test_response_with_no_answers_has_empty_accessors():
+    response = ClassifierResponse(model="jev-latest", answers={}, usage={})
+
+    assert response.nouls == {}
+    assert response.choices == {}
+    assert response.scores == {}
+
+
+def test_usage_accepts_none_token_counts():
+    usage = ClassifierUsage(input_tokens=None, output_tokens=None)
+
+    assert usage.input_tokens is None
+    assert usage.output_tokens is None
+    assert ClassifierUsage() == usage
+
+
+def test_response_rejects_empty_answer_name():
+    with pytest.raises(ValidationError):
+        ClassifierResponse(
+            model="jev-latest", answers={"": NOUL_ANSWER}, usage=ClassifierUsage()
+        )
