@@ -96,6 +96,12 @@ def test_score_criteria_outside_bounds_is_rejected(count):
         ScoreQuestion(criteria=criteria)
 
 
+@pytest.mark.parametrize("question_type", [ChoiceQuestion, ScoreQuestion])
+def test_choice_and_score_criteria_are_required(question_type):
+    with pytest.raises(ValidationError):
+        question_type()
+
+
 def test_score_level_none_is_rejected():
     with pytest.raises(ValidationError):
         ScoreQuestion(criteria=["low", None])
