@@ -26,8 +26,6 @@ class ClassifierPort(ABC):
         Returns:
             ClassifierResponse: The answers from the classifier
         """
-        pass
 
     async def aclose(self) -> None:
         """Release network resources. Default: no-op."""
-        pass
