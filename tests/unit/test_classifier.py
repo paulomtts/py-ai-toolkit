@@ -1,13 +1,17 @@
 import asyncio
 import importlib.util
 import inspect
+import subprocess
+import sys
 import typing
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
+from py_ai_toolkit import factories
 from py_ai_toolkit.core import ports as ports_package
 from py_ai_toolkit.core.domain import classifier as classifier_module
 from py_ai_toolkit.core.domain.classifier import (
@@ -457,3 +461,111 @@ def test_classifier_port_is_separate_from_llm_port():
 def test_classifier_port_exported_from_ports_package():
     assert ports_package.ClassifierPort is ClassifierPort
     assert "ClassifierPort" in ports_package.__all__
+
+
+# create_classifier factory
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+INSTALL_HINT = (
+    "The Jev classifier requires the 'jev' extra: pip install 'py-ai-toolkit[jev]'."
+)
+
+
+def _capture_sdk_client(monkeypatch):
+    import py_ai_toolkit.adapters.jev_adapter as jev_adapter_module
+
+    calls = []
+
+    def fake_client(**kwargs):
+        calls.append(kwargs)
+        return object()
+
+    monkeypatch.setattr(jev_adapter_module, "AsyncTypeSafeClient", fake_client)
+    return jev_adapter_module, calls
+
+
+def test_create_classifier_returns_classifier_port_with_defaults(monkeypatch):
+    pytest.importorskip("typesafe_sdk")
+    jev_adapter_module, calls = _capture_sdk_client(monkeypatch)
+
+    classifier = factories.create_classifier("test-key")
+
+    assert isinstance(classifier, ClassifierPort)
+    assert isinstance(classifier, jev_adapter_module.JevAdapter)
+    assert classifier._model == "jev-latest"
+    assert calls == [
+        {"api_key": "test-key", "model": "jev-latest", "base_url": None},
+    ]
+
+
+def test_create_classifier_passes_model_and_base_url_through(monkeypatch):
+    pytest.importorskip("typesafe_sdk")
+    _, calls = _capture_sdk_client(monkeypatch)
+
+    classifier = factories.create_classifier(
+        "other-key",
+        model="jev-2026-09",
+        base_url="https://example.invalid",
+    )
+
+    assert isinstance(classifier, ClassifierPort)
+    assert classifier._model == "jev-2026-09"
+    assert calls == [
+        {
+            "api_key": "other-key",
+            "model": "jev-2026-09",
+            "base_url": "https://example.invalid",
+        },
+    ]
+
+
+def test_create_classifier_does_not_relabel_construction_errors(monkeypatch):
+    pytest.importorskip("typesafe_sdk")
+    import py_ai_toolkit.adapters.jev_adapter as jev_adapter_module
+
+    inner = ImportError("raised while building the SDK client")
+
+    def failing_client(**kwargs):
+        raise inner
+
+    monkeypatch.setattr(jev_adapter_module, "AsyncTypeSafeClient", failing_client)
+
+    with pytest.raises(ImportError) as exc_info:
+        factories.create_classifier("test-key")
+
+    assert exc_info.value is inner
+
+
+def test_create_classifier_without_sdk_raises_install_hint(monkeypatch):
+    monkeypatch.delitem(
+        sys.modules, "py_ai_toolkit.adapters.jev_adapter", raising=False
+    )
+    monkeypatch.setitem(sys.modules, "typesafe_sdk", None)
+
+    for _ in range(2):
+        with pytest.raises(ImportError) as exc_info:
+            factories.create_classifier("test-key")
+
+        assert str(exc_info.value) == INSTALL_HINT
+        assert "py-ai-toolkit[jev]" in str(exc_info.value)
+        assert exc_info.value.__cause__ is not None
+        assert isinstance(exc_info.value.__cause__, ImportError)
+
+
+def test_package_imports_survive_missing_sdk():
+    script = (
+        "import sys; "
+        "sys.modules['typesafe_sdk'] = None; "
+        "import py_ai_toolkit.adapters, py_ai_toolkit.factories; "
+        "assert callable(py_ai_toolkit.factories.create_classifier); "
+        "assert 'py_ai_toolkit.adapters.jev_adapter' not in sys.modules"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
