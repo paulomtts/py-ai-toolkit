@@ -179,7 +179,9 @@ class PyAIToolkit:
             {"role": "system", "content": final_prompt},
         ]
 
-    async def embed(self, text: str, *, hooks: Hooks | None = None) -> EmbeddingResponse:
+    async def embed(
+        self, text: str, *, hooks: Hooks | None = None
+    ) -> EmbeddingResponse:
         """
         Embeds text into a vector space.
         """
