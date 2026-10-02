@@ -231,7 +231,7 @@ result = await toolkit.run_task(
 - If a hook raises an exception, it **propagates to the caller**. Keep your hooks simple and handle errors within them if needed.
 - `elapsed_ms` in `AfterLLMCallContext` measures **API latency only**, not template rendering or validation time.
 - For `stream()`, the `after_llm_call` hook fires after the stream completes and receives the last chunk as the response.
-- `before_classify` fires only after `classify()`'s guards pass: it does not fire when no classifier is configured or when `questions` is empty.
+- `before_classify` fires only after `classify()`'s guards pass: it does not fire when no classifier is configured, when `questions` is empty, or when a question name is empty or not a string.
 - `after_classify` fires on success only. If the classifier call raises, it does not fire.
 - `elapsed_ms` in `AfterClassifyContext` measures the classifier call only.
 
