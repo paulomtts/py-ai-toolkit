@@ -95,11 +95,12 @@ def _to_classifier_response(response: SystemOneResponse) -> ClassifierResponse:
             confidence=choice.confidence,
         )
     for name, score in response.scores.items():
+        # Level keys may arrive as JSON strings; ScoreAnswer coerces them to int.
         answers[name] = ScoreAnswer(
             score=score.score,
-            probabilities={int(k): v for k, v in score.probabilities.items()},
+            probabilities=dict(score.probabilities),
             confidence=score.confidence,
-            legend={int(k): v for k, v in score.legend.items()},
+            legend=dict(score.legend),
         )
     return ClassifierResponse(
         model=response.model,
