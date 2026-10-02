@@ -658,3 +658,129 @@ def test_toolkit_env_key_without_jev_extra_raises_install_hint(monkeypatch):
 
     assert str(exc_info.value) == INSTALL_HINT
     assert isinstance(exc_info.value.__cause__, ImportError)
+
+
+
+
+MISSING_KEY_MESSAGE = "ClassifierConfig requires an api_key or CLASSIFIER_API_KEY."
+
+
+def test_toolkit_explicit_config_beats_env_for_every_field(monkeypatch):
+    monkeypatch.setenv("CLASSIFIER_API_KEY", "env-key")
+    monkeypatch.setenv("CLASSIFIER_MODEL", "env-model")
+    monkeypatch.setenv("CLASSIFIER_BASE_URL", "https://env.invalid")
+    factory = _patch_factory(monkeypatch)
+
+    toolkit = PyAIToolkit(
+        main_model_config=LLM_CONFIG,
+        classifier_config=ClassifierConfig(
+            api_key="cfg-key",
+            model="cfg-model",
+            base_url="https://cfg.invalid",
+        ),
+    )
+
+    assert factory.calls == [("cfg-key", "cfg-model", "https://cfg.invalid")]
+    assert toolkit.classifier is factory.returned
+
+
+def test_toolkit_model_falls_back_to_env_model(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    monkeypatch.setenv("CLASSIFIER_MODEL", "env-model")
+    factory = _patch_factory(monkeypatch)
+
+    PyAIToolkit(
+        main_model_config=LLM_CONFIG,
+        classifier_config=ClassifierConfig(api_key="cfg-key"),
+    )
+
+    assert factory.calls == [("cfg-key", "env-model", None)]
+
+
+def test_toolkit_model_falls_back_to_jev_latest_and_base_url_to_none(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    factory = _patch_factory(monkeypatch)
+
+    PyAIToolkit(
+        main_model_config=LLM_CONFIG,
+        classifier_config=ClassifierConfig(api_key="cfg-key"),
+    )
+
+    assert factory.calls == [("cfg-key", "jev-latest", None)]
+
+
+def test_toolkit_empty_config_fields_fall_back_to_env(monkeypatch):
+    monkeypatch.setenv("CLASSIFIER_API_KEY", "env-key")
+    monkeypatch.setenv("CLASSIFIER_MODEL", "env-model")
+    monkeypatch.setenv("CLASSIFIER_BASE_URL", "https://env.invalid")
+    factory = _patch_factory(monkeypatch)
+
+    PyAIToolkit(
+        main_model_config=LLM_CONFIG,
+        classifier_config=ClassifierConfig(api_key="", model="", base_url=""),
+    )
+
+    assert factory.calls == [("env-key", "env-model", "https://env.invalid")]
+
+
+def test_toolkit_config_without_key_raises_value_error(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    factory = _patch_factory(monkeypatch)
+
+    with pytest.raises(ValueError) as exc_info:
+        PyAIToolkit(main_model_config=LLM_CONFIG, classifier_config=ClassifierConfig())
+
+    assert str(exc_info.value) == MISSING_KEY_MESSAGE
+    assert factory.calls == []
+
+
+def test_toolkit_config_with_empty_env_key_raises_value_error(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    monkeypatch.setenv("CLASSIFIER_API_KEY", "")
+    factory = _patch_factory(monkeypatch)
+
+    with pytest.raises(ValueError) as exc_info:
+        PyAIToolkit(
+            main_model_config=LLM_CONFIG,
+            classifier_config=ClassifierConfig(model="cfg-model"),
+        )
+
+    assert str(exc_info.value) == MISSING_KEY_MESSAGE
+    assert factory.calls == []
+
+
+def test_toolkit_propagates_factory_errors_unchanged(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    inner = RuntimeError("SDK client construction failed")
+
+    def failing_factory(api_key, model="jev-latest", base_url=None):
+        raise inner
+
+    monkeypatch.setattr(
+        "py_ai_toolkit.core.toolkit.create_classifier", failing_factory
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        PyAIToolkit(
+            main_model_config=LLM_CONFIG,
+            classifier_config=ClassifierConfig(api_key="cfg-key"),
+        )
+
+    assert exc_info.value is inner
+
+
+def test_toolkit_config_key_without_jev_extra_raises_install_hint(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    monkeypatch.delitem(
+        sys.modules, "py_ai_toolkit.adapters.jev_adapter", raising=False
+    )
+    monkeypatch.setitem(sys.modules, "typesafe_sdk", None)
+
+    with pytest.raises(ImportError) as exc_info:
+        PyAIToolkit(
+            main_model_config=LLM_CONFIG,
+            classifier_config=ClassifierConfig(api_key="cfg-key"),
+        )
+
+    assert str(exc_info.value) == INSTALL_HINT
+    assert isinstance(exc_info.value.__cause__, ImportError)

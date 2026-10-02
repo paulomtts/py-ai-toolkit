@@ -5,6 +5,7 @@ from typing import Any, AsyncGenerator, Type, TypeVar
 
 from pydantic import BaseModel
 
+from py_ai_toolkit.core.domain.classifier import ClassifierConfig
 from py_ai_toolkit.core.domain.errors import WorkflowError
 from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
@@ -43,6 +44,7 @@ class PyAIToolkit:
         self,
         main_model_config: LLMConfig | None = None,
         alternative_models_configs: list[LLMConfig] | None = None,
+        classifier_config: ClassifierConfig | None = None,
     ):
         if main_model_config is None:
             main_model_config = LLMConfig()
@@ -64,11 +66,22 @@ class PyAIToolkit:
         self.prompt_formatter = create_prompt_formatter()
         self.model_handler = create_model_handler()
 
-        classifier_api_key = os.getenv("CLASSIFIER_API_KEY")
-        classifier_model = os.getenv("CLASSIFIER_MODEL") or "jev-latest"
-        classifier_base_url = os.getenv("CLASSIFIER_BASE_URL")
+        resolved_config = (
+            classifier_config if classifier_config is not None else ClassifierConfig()
+        )
+        classifier_api_key = resolved_config.api_key or os.getenv("CLASSIFIER_API_KEY")
+        classifier_model = (
+            resolved_config.model or os.getenv("CLASSIFIER_MODEL") or "jev-latest"
+        )
+        classifier_base_url = resolved_config.base_url or os.getenv(
+            "CLASSIFIER_BASE_URL"
+        )
         self.classifier: ClassifierPort | None = None
-        if classifier_api_key:
+        if classifier_config is not None and not classifier_api_key:
+            raise ValueError(
+                "ClassifierConfig requires an api_key or CLASSIFIER_API_KEY."
+            )
+        if classifier_config is not None or classifier_api_key:
             self.classifier = create_classifier(
                 classifier_api_key, classifier_model, classifier_base_url
             )
