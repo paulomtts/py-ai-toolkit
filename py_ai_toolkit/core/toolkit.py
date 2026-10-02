@@ -1,8 +1,8 @@
 import os
 import random
 import time
-from collections.abc import Mapping
-from typing import Any, AsyncGenerator, Type, TypeVar
+from collections.abc import AsyncGenerator, Mapping
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -20,16 +20,16 @@ from py_ai_toolkit.core.domain.schemas import (
     ValidationConfig,
 )
 from py_ai_toolkit.core.hooks import (
+    AfterClassifyContext,
+    AfterEmbedBatchContext,
+    AfterEmbedContext,
+    AfterLLMCallContext,
+    AfterRenderContext,
+    BeforeClassifyContext,
+    BeforeLLMCallContext,
+    BeforeRenderContext,
     Hooks,
     _fire_hook,
-    BeforeRenderContext,
-    AfterRenderContext,
-    BeforeLLMCallContext,
-    AfterLLMCallContext,
-    AfterEmbedContext,
-    AfterEmbedBatchContext,
-    BeforeClassifyContext,
-    AfterClassifyContext,
 )
 from py_ai_toolkit.core.ports import ClassifierPort
 from py_ai_toolkit.factories import (
@@ -95,10 +95,10 @@ class PyAIToolkit:
 
     def inject_types(
         self,
-        model: Type[T],
+        model: type[T],
         fields: list[tuple[str, Any]],
         docstring: str | None = None,
-    ) -> Type[T]:
+    ) -> type[T]:
         """
         Injects field types into a response model.
 
@@ -115,7 +115,7 @@ class PyAIToolkit:
         return self.model_handler.inject_types(model, fields, docstring)
 
     def reduce_model_schema(
-        self, model: Type[T], include_description: bool = True
+        self, model: type[T], include_description: bool = True
     ) -> str:
         """
         Reduces a response model schema into version with less tokens. Helpful for reducing prompt noise.
@@ -381,7 +381,7 @@ class PyAIToolkit:
 
     async def asend(
         self,
-        response_model: Type[T],
+        response_model: type[T],
         template: str | None = None,
         *,
         hooks: Hooks | None = None,
@@ -440,7 +440,7 @@ class PyAIToolkit:
     async def run_task(
         self,
         template: str,
-        response_model: Type[T],
+        response_model: type[T],
         kwargs: dict[str, Any],
         config: ValidationConfig = SingleShotValidationConfig(),
         echo: bool = False,

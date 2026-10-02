@@ -2,8 +2,8 @@ from typing import TypeVar
 
 from grafo import TreeExecutor
 
-from py_ai_toolkit.core.domain.schemas import ValidationConfig
 from py_ai_toolkit.core.domain.models import BaseIssue
+from py_ai_toolkit.core.domain.schemas import ValidationConfig
 from py_ai_toolkit.core.utils import logger
 
 V = TypeVar("V", bound=BaseIssue)

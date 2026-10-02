@@ -486,8 +486,8 @@ async def test_redirect_fires_on_retry_hook():
 
 
 def test_after_embed_context_is_frozen():
-    from py_ai_toolkit.core.hooks import AfterEmbedContext
     from py_ai_toolkit.core.domain.schemas import EmbeddingUsage
+    from py_ai_toolkit.core.hooks import AfterEmbedContext
 
     usage = EmbeddingUsage(prompt_tokens=10, total_tokens=10)
     ctx = AfterEmbedContext(
@@ -517,8 +517,8 @@ def test_hooks_has_after_embed():
 
 @pytest.mark.asyncio
 async def test_embed_fires_after_embed_hook():
-    from py_ai_toolkit.core.hooks import AfterEmbedContext
     from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
+    from py_ai_toolkit.core.hooks import AfterEmbedContext
 
     ait, _ = _new_toolkit_with_llm()
 
@@ -578,8 +578,8 @@ def test_hooks_exported_from_package():
 
 
 def test_after_embed_batch_context_is_frozen():
-    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
     from py_ai_toolkit.core.domain.schemas import EmbeddingUsage
+    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
 
     usage = EmbeddingUsage(prompt_tokens=20, total_tokens=20)
     ctx = AfterEmbedBatchContext(
@@ -640,8 +640,8 @@ async def test_embed_batch_empty_list_returns_empty():
 
 @pytest.mark.asyncio
 async def test_embed_batch_fires_after_embed_batch_hook():
-    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
     from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
+    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
 
     ait, _ = _new_toolkit_with_llm()
 

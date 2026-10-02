@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, Type, TypeVar
+from collections.abc import AsyncGenerator
+from typing import TypeVar
 
 from pydantic import BaseModel
 
@@ -18,14 +19,12 @@ class LLMPort(ABC):
         """
         Embeds text into a vector space.
         """
-        pass
 
     @abstractmethod
     async def embed_batch(self, texts: list[str]) -> list[EmbeddingResponse]:
         """
         Embeds multiple texts in a single API request.
         """
-        pass
 
     @abstractmethod
     async def chat(self, messages: list[dict[str, str]]) -> CompletionResponse:
@@ -38,7 +37,6 @@ class LLMPort(ABC):
         Returns:
             CompletionResponse: The response from the LLM
         """
-        pass
 
     @abstractmethod
     async def stream(
@@ -59,7 +57,7 @@ class LLMPort(ABC):
     async def asend(
         self,
         messages: list[dict[str, str]],
-        response_model: Type[T],
+        response_model: type[T],
     ) -> CompletionResponse[T]:
         """
         Sends a message to the LLM asynchronously and returns an instance of the response model.
@@ -71,4 +69,3 @@ class LLMPort(ABC):
         Returns:
             CompletionResponse[T]: The response from the LLM
         """
-        pass

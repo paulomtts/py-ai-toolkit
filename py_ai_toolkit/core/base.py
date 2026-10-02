@@ -1,4 +1,4 @@
-from typing import Any, Type, TypeVar, Union
+from typing import Any, TypeVar
 from uuid import uuid4
 
 from grafo import Node, TreeExecutor
@@ -14,11 +14,11 @@ from py_ai_toolkit.core.domain.schemas import (
 )
 from py_ai_toolkit.core.executors import IssueTreeExecutor
 from py_ai_toolkit.core.hooks import (
-    Hooks,
-    _fire_hook,
-    BeforeValidationContext,
     AfterValidationContext,
+    BeforeValidationContext,
+    Hooks,
     OnRetryContext,
+    _fire_hook,
 )
 from py_ai_toolkit.core.toolkit import PyAIToolkit
 from py_ai_toolkit.core.utils import logger
@@ -36,7 +36,7 @@ class BaseWorkflow:
     def __init__(
         self,
         ai_toolkit: PyAIToolkit,
-        error_class: Type[Exception],
+        error_class: type[Exception],
         echo: bool = False,
         hooks: Hooks | None = None,
     ):
@@ -53,10 +53,10 @@ class BaseWorkflow:
     async def task(
         self,
         template: str | None = None,
-        response_model: Type[S] | None = None,
+        response_model: type[S] | None = None,
         echo: bool = False,
         **kwargs: Any,
-    ) -> Union[str, S]:
+    ) -> str | S:
         """
         Execute a task.
 
@@ -89,7 +89,7 @@ class BaseWorkflow:
         self,
         template: str,
         uuid: str | None = None,
-        response_model: Type[S] | None = None,
+        response_model: type[S] | None = None,
         echo: bool = False,
         **kwargs: Any,
     ) -> Node[Any]:
@@ -344,7 +344,7 @@ class BaseWorkflow:
     async def create_task_tree(
         self,
         template: str,
-        response_model: Type[S],
+        response_model: type[S],
         kwargs: dict[str, Any],
         config: ValidationConfig = SingleShotValidationConfig(),
         echo: bool = False,
@@ -400,7 +400,7 @@ class BaseWorkflow:
         self,
         uuid: str,
         template: str,
-        response_model: Type[S],
+        response_model: type[S],
         kwargs: dict[str, Any],
         config: ValidationConfig = SingleShotValidationConfig(),
     ) -> Node[S]:

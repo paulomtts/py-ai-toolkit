@@ -1,5 +1,5 @@
 import re
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field, create_model
 from pydantic_core import PydanticUndefined
@@ -63,10 +63,10 @@ class PydanticAdapter(ModellerPort):
 
     def inject_types(
         self,
-        model: Type[T],
+        model: type[T],
         fields: list[tuple[str, Any]],
         docstring: str | None = None,
-    ) -> Type[T]:
+    ) -> type[T]:
         """
         Injects field types into a model.
         """
@@ -84,7 +84,7 @@ class PydanticAdapter(ModellerPort):
         )
 
     def reduce_model_schema(
-        self, model: Type[T], include_description: bool = True
+        self, model: type[T], include_description: bool = True
     ) -> str:
         """
         Reduces the model schema into version with less tokens. Helpful for reducing prompt noise.

@@ -1,5 +1,5 @@
+from collections.abc import AsyncGenerator
 from http import HTTPStatus
-from typing import AsyncGenerator, Type
 
 import instructor
 from openai import AsyncOpenAI
@@ -146,7 +146,7 @@ class InstructorAdapter(LLMPort):
     async def asend(
         self,
         messages: list[dict[str, str]],
-        response_model: Type[S],
+        response_model: type[S],
     ) -> CompletionResponse[S]:
         """
         Sends a message to the LLM asynchronously and returns a structured response.

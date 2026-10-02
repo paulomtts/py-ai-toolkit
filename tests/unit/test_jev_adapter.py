@@ -8,10 +8,10 @@ import pytest
 
 typesafe_sdk = pytest.importorskip("typesafe_sdk")
 
-import httpx2  # noqa: E402
+import httpx2
 
-from py_ai_toolkit.adapters.jev_adapter import JevAdapter  # noqa: E402
-from py_ai_toolkit.core.domain.classifier import (  # noqa: E402
+from py_ai_toolkit.adapters.jev_adapter import JevAdapter
+from py_ai_toolkit.core.domain.classifier import (
     ChoiceAnswer,
     ChoiceQuestion,
     ClassifierResponse,
@@ -22,7 +22,7 @@ from py_ai_toolkit.core.domain.classifier import (  # noqa: E402
     ScoreAnswer,
     ScoreQuestion,
 )
-from py_ai_toolkit.core.domain.errors import ClassifierAdapterError  # noqa: E402
+from py_ai_toolkit.core.domain.errors import ClassifierAdapterError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 STATE = "I was charged twice. Please help."

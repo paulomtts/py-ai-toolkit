@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from jinja2 import Environment
 
@@ -25,7 +25,7 @@ class Jinja2Adapter(FormatterPort):
         self,
         path: str | None = None,
         prompt: str | None = None,
-        input: Optional[dict[str, Any]] = None,
+        input: dict[str, Any] | None = None,
     ) -> str:
         """
         Render a Markdown template from a path with variables.

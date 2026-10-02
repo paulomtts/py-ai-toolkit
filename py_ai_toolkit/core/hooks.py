@@ -1,6 +1,6 @@
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Type
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -31,7 +31,7 @@ class AfterRenderContext:
 class BeforeLLMCallContext:
     messages: list[dict[str, str]]
     model: str
-    response_model: Type | None
+    response_model: type | None
 
 
 @dataclass(frozen=True)

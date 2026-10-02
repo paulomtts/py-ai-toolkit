@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 
 class FormatterPort(ABC):
@@ -10,9 +10,8 @@ class FormatterPort(ABC):
         self,
         path: str | None = None,
         prompt: str | None = None,
-        input: Optional[dict[str, Any]] = None,
+        input: dict[str, Any] | None = None,
     ) -> str:
         """
         Render a template with variables.
         """
-        pass

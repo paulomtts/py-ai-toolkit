@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -14,20 +14,18 @@ class ModellerPort(ABC):
     @abstractmethod
     def inject_types(
         self,
-        model: Type[T],
+        model: type[T],
         fields: list[tuple[str, Any]],
         docstring: str | None = None,
-    ) -> Type[T]:
+    ) -> type[T]:
         """
         Injects field types into a model.
         """
-        pass
 
     @abstractmethod
     def reduce_model_schema(
-        self, model: Type[T], include_description: bool = True
+        self, model: type[T], include_description: bool = True
     ) -> str:
         """
         Reduces the model schema into version with less tokens. Helpful for reducing prompt noise.
         """
-        pass

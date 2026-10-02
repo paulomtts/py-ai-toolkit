@@ -15,14 +15,14 @@ pytestmark = pytest.mark.skipif(
 
 pytest.importorskip("typesafe_sdk")
 
-from py_ai_toolkit import (  # noqa: E402
+from py_ai_toolkit import (
     ChoiceQuestion,
     ClassifierResponse,
     NoulQuestion,
     PyAIToolkit,
     ScoreQuestion,
 )
-from py_ai_toolkit.core.domain.classifier import NoulCriteria  # noqa: E402
+from py_ai_toolkit.core.domain.classifier import NoulCriteria
 
 STATE = (
     "Hi, I was charged twice for my subscription this month. "
