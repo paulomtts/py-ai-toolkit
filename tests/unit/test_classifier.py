@@ -6,6 +6,7 @@ import sys
 import typing
 from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -31,6 +32,7 @@ from py_ai_toolkit.core.domain.classifier import (
 )
 from py_ai_toolkit.core.domain.errors import ClassifierAdapterError, LLMAdapterError
 from py_ai_toolkit.core.domain.schemas import LLMConfig
+from py_ai_toolkit.core.hooks import AfterClassifyContext, BeforeClassifyContext, Hooks
 from py_ai_toolkit.core.ports.classifier_port import ClassifierPort
 from py_ai_toolkit.core.ports.llm_port import LLMPort
 from py_ai_toolkit.core.toolkit import PyAIToolkit
@@ -780,3 +782,204 @@ def test_toolkit_config_key_without_jev_extra_raises_install_hint(monkeypatch):
 
     assert str(exc_info.value) == INSTALL_HINT
     assert isinstance(exc_info.value.__cause__, ImportError)
+
+
+# PyAIToolkit.classify
+
+UNCONFIGURED_MESSAGE = (
+    "Classifier not configured: pass ClassifierConfig (or set CLASSIFIER_API_KEY) "
+    "and install `py-ai-toolkit[jev]`."
+)
+QUESTIONS = {"q": NoulQuestion()}
+
+
+class FakeClassifier(ClassifierPort):
+    def __init__(self, response=FIXED_RESPONSE, error=None, model="fake-model"):
+        self._model = model
+        self.response = response
+        self.error = error
+        self.calls = []
+        self.aclose_calls = 0
+
+    async def classify(self, state, questions):
+        self.calls.append((state, questions))
+        if self.error is not None:
+            raise self.error
+        return self.response
+
+    async def aclose(self):
+        self.aclose_calls += 1
+
+
+def _toolkit_with(monkeypatch, classifier):
+    _clear_classifier_env(monkeypatch)
+    toolkit = PyAIToolkit(main_model_config=LLM_CONFIG)
+    toolkit.classifier = classifier
+    return toolkit
+
+
+def _recording_hooks():
+    events = []
+
+    async def before(ctx):
+        events.append(("before", ctx))
+
+    async def after(ctx):
+        events.append(("after", ctx))
+
+    return Hooks(before_classify=before, after_classify=after), events
+
+
+@pytest.mark.parametrize("state", ["plain text", {"text": "hi"}, ["a", "b"]])
+def test_classify_returns_port_response_and_passes_args(monkeypatch, state):
+    fake = FakeClassifier()
+    toolkit = _toolkit_with(monkeypatch, fake)
+
+    result = run(toolkit.classify(state, QUESTIONS))
+
+    assert result is FIXED_RESPONSE
+    assert len(fake.calls) == 1
+    assert fake.calls[0][0] is state
+    assert fake.calls[0][1] is QUESTIONS
+
+
+def test_classify_fires_before_then_after_with_contexts(monkeypatch):
+    fake = FakeClassifier(model="jev-test")
+    toolkit = _toolkit_with(monkeypatch, fake)
+    hooks, events = _recording_hooks()
+    state = {"text": "hi"}
+
+    result = run(toolkit.classify(state, QUESTIONS, hooks=hooks))
+
+    assert [name for name, _ in events] == ["before", "after"]
+    before_ctx = events[0][1]
+    after_ctx = events[1][1]
+    assert isinstance(before_ctx, BeforeClassifyContext)
+    assert before_ctx.state is state
+    assert before_ctx.questions is QUESTIONS
+    assert before_ctx.model == "jev-test"
+    assert isinstance(after_ctx, AfterClassifyContext)
+    assert after_ctx.response is result
+    assert after_ctx.usage is FIXED_RESPONSE.usage
+    assert after_ctx.model == "jev-test"
+
+
+def test_classify_reports_non_negative_elapsed_ms(monkeypatch):
+    toolkit = _toolkit_with(monkeypatch, FakeClassifier())
+    hooks, events = _recording_hooks()
+
+    run(toolkit.classify("text", QUESTIONS, hooks=hooks))
+
+    after_ctx = events[-1][1]
+    assert isinstance(after_ctx.elapsed_ms, float)
+    assert after_ctx.elapsed_ms >= 0
+
+
+def test_classify_without_hooks_returns_response(monkeypatch):
+    fake = FakeClassifier()
+    toolkit = _toolkit_with(monkeypatch, fake)
+
+    result = run(toolkit.classify("text", QUESTIONS))
+
+    assert result is FIXED_RESPONSE
+    assert len(fake.calls) == 1
+
+
+def test_classify_without_hooks_does_not_need_model_attribute(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    monkeypatch.setenv("CLASSIFIER_API_KEY", "env-key")
+    factory = _patch_factory(monkeypatch)
+    toolkit = PyAIToolkit(main_model_config=LLM_CONFIG)
+    assert not hasattr(factory.returned, "_model")
+
+    result = run(toolkit.classify("text", QUESTIONS))
+
+    assert result is FIXED_RESPONSE
+
+
+def test_classify_with_only_after_hook_fires_it(monkeypatch):
+    toolkit = _toolkit_with(monkeypatch, FakeClassifier())
+    seen = []
+
+    async def after(ctx):
+        seen.append(ctx)
+
+    run(toolkit.classify("text", QUESTIONS, hooks=Hooks(after_classify=after)))
+
+    assert len(seen) == 1
+    assert seen[0].response is FIXED_RESPONSE
+
+
+def test_classify_error_propagates_and_skips_after_hook(monkeypatch):
+    error = ClassifierAdapterError("Jev request failed")
+    toolkit = _toolkit_with(monkeypatch, FakeClassifier(error=error))
+    hooks, events = _recording_hooks()
+
+    with pytest.raises(ClassifierAdapterError) as exc_info:
+        run(toolkit.classify("text", QUESTIONS, hooks=hooks))
+
+    assert exc_info.value is error
+    assert [name for name, _ in events] == ["before"]
+
+
+def test_classify_before_hook_error_skips_classifier(monkeypatch):
+    fake = FakeClassifier()
+    toolkit = _toolkit_with(monkeypatch, fake)
+    error = RuntimeError("hook failed")
+
+    async def before(ctx):
+        raise error
+
+    with pytest.raises(RuntimeError) as exc_info:
+        run(toolkit.classify("text", QUESTIONS, hooks=Hooks(before_classify=before)))
+
+    assert exc_info.value is error
+    assert fake.calls == []
+
+
+def test_classify_unconfigured_raises_without_firing_hooks(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    toolkit = PyAIToolkit(main_model_config=LLM_CONFIG)
+    assert toolkit.classifier is None
+    hooks, events = _recording_hooks()
+
+    with pytest.raises(ClassifierAdapterError) as exc_info:
+        run(toolkit.classify("text", QUESTIONS, hooks=hooks))
+
+    assert exc_info.value.message == UNCONFIGURED_MESSAGE
+    assert str(exc_info.value) == UNCONFIGURED_MESSAGE
+    assert events == []
+
+
+def test_classify_unconfigured_guard_runs_before_empty_check(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    toolkit = PyAIToolkit(main_model_config=LLM_CONFIG)
+
+    with pytest.raises(ClassifierAdapterError) as exc_info:
+        run(toolkit.classify("text", {}))
+
+    assert exc_info.value.message == UNCONFIGURED_MESSAGE
+
+
+def test_classify_empty_questions_raises_without_firing_hooks(monkeypatch):
+    fake = FakeClassifier()
+    toolkit = _toolkit_with(monkeypatch, fake)
+    hooks, events = _recording_hooks()
+
+    with pytest.raises(ValueError) as exc_info:
+        run(toolkit.classify("text", {}, hooks=hooks))
+
+    assert str(exc_info.value) == "questions must not be empty."
+    assert events == []
+    assert fake.calls == []
+
+
+def test_classify_rejects_empty_non_dict_mapping(monkeypatch):
+    fake = FakeClassifier()
+    toolkit = _toolkit_with(monkeypatch, fake)
+
+    with pytest.raises(ValueError) as exc_info:
+        run(toolkit.classify("text", MappingProxyType({})))
+
+    assert str(exc_info.value) == "questions must not be empty."
+    assert fake.calls == []

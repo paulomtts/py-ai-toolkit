@@ -1,12 +1,17 @@
 import os
 import random
 import time
+from collections.abc import Mapping
 from typing import Any, AsyncGenerator, Type, TypeVar
 
 from pydantic import BaseModel
 
-from py_ai_toolkit.core.domain.classifier import ClassifierConfig
-from py_ai_toolkit.core.domain.errors import WorkflowError
+from py_ai_toolkit.core.domain.classifier import (
+    ClassifierConfig,
+    ClassifierResponse,
+    Question,
+)
+from py_ai_toolkit.core.domain.errors import ClassifierAdapterError, WorkflowError
 from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
     EmbeddingResponse,
@@ -23,6 +28,8 @@ from py_ai_toolkit.core.hooks import (
     AfterLLMCallContext,
     AfterEmbedContext,
     AfterEmbedBatchContext,
+    BeforeClassifyContext,
+    AfterClassifyContext,
 )
 from py_ai_toolkit.core.ports import ClassifierPort
 from py_ai_toolkit.factories import (
@@ -216,6 +223,59 @@ class PyAIToolkit:
             )
 
         return responses
+
+    async def classify(
+        self,
+        state: str | dict | list,
+        questions: Mapping[str, Question],
+        *,
+        hooks: Hooks | None = None,
+    ) -> ClassifierResponse:
+        """
+        Classifies a state against named questions using the configured classifier.
+
+        Args:
+            state: The text or JSON-like content to classify
+            questions: Question name to question definition
+            hooks (Hooks | None): Optional hooks to fire before/after the classifier call
+
+        Returns:
+            ClassifierResponse: The classifier's response, unchanged
+        """
+        if self.classifier is None:
+            raise ClassifierAdapterError(
+                "Classifier not configured: pass ClassifierConfig (or set "
+                "CLASSIFIER_API_KEY) and install `py-ai-toolkit[jev]`."
+            )
+        if not questions:
+            raise ValueError("questions must not be empty.")
+
+        if hooks:
+            await _fire_hook(
+                hooks.before_classify,
+                BeforeClassifyContext(
+                    state=state,
+                    questions=questions,
+                    model=self.classifier._model,
+                ),
+            )
+
+        start = time.perf_counter()
+        response = await self.classifier.classify(state, questions)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        if hooks:
+            await _fire_hook(
+                hooks.after_classify,
+                AfterClassifyContext(
+                    response=response,
+                    model=self.classifier._model,
+                    elapsed_ms=elapsed_ms,
+                    usage=response.usage,
+                ),
+            )
+
+        return response
 
     async def chat(
         self,
