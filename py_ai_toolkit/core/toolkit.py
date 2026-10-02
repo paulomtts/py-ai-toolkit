@@ -136,7 +136,7 @@ class PyAIToolkit:
     ) -> list:
         try:
             is_path = os.path.exists(template)
-        except Exception:
+        except Exception:  # noqa: BLE001  any failure to probe the template means it is not a path
             is_path = False
 
         for key, value in kwargs.items():
@@ -434,7 +434,7 @@ class PyAIToolkit:
             )
 
         if not isinstance(response.content, response_model):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004  public API raises ValueError; callers may catch it
                 f"Response content is not an instance of {response_model.__name__}"
             )
         return response

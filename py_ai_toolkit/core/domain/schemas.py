@@ -33,7 +33,7 @@ class CompletionResponse(BaseModel, Generic[S]):
         Returns the instance of the response model of the completion response.
         """
         if isinstance(self.content, (str, list)):
-            raise ValueError("Content is not structured.")
+            raise ValueError("Content is not structured.")  # noqa: TRY004  public API raises ValueError; callers may catch it
         return self.content
 
 
