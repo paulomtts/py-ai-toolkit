@@ -39,6 +39,9 @@ dev = [
 docs = [
     "mkdocs",
 ]
+jev = [
+    "typesafe-sdk>=0.6.0",
+]
 
 [tool.setuptools.packages.find]
 include = ["py_ai_toolkit*"]
