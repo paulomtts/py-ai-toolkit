@@ -277,6 +277,13 @@ class PyAIToolkit:
 
         return response
 
+    async def aclose(self) -> None:
+        """
+        Releases the classifier's resources, if a classifier is configured.
+        """
+        if self.classifier is not None:
+            await self.classifier.aclose()
+
     async def chat(
         self,
         template: str | None = None,

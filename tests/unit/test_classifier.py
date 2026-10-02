@@ -983,3 +983,24 @@ def test_classify_rejects_empty_non_dict_mapping(monkeypatch):
 
     assert str(exc_info.value) == "questions must not be empty."
     assert fake.calls == []
+
+
+# PyAIToolkit.aclose
+
+
+def test_aclose_delegates_to_classifier(monkeypatch):
+    fake = FakeClassifier()
+    toolkit = _toolkit_with(monkeypatch, fake)
+
+    result = run(toolkit.aclose())
+
+    assert result is None
+    assert fake.aclose_calls == 1
+
+
+def test_aclose_without_classifier_is_noop(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    toolkit = PyAIToolkit(main_model_config=LLM_CONFIG)
+    assert toolkit.classifier is None
+
+    assert run(toolkit.aclose()) is None
