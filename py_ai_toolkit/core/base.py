@@ -203,11 +203,11 @@ class BaseWorkflow:
         issue_node = Node[IssueModel](
             uuid=issue,
             coroutine=self.task,
-            kwargs=dict(
-                response_model=IssueModel,
-                input=task_node.kwargs,
-                output=task_node.output,
-                template="""
+            kwargs={
+                "response_model": IssueModel,
+                "input": task_node.kwargs,
+                "output": task_node.output,
+                "template": """
                     # Goal
                     Evaluate the output with regards to the issue. Rules:
                     - The issue is the only dimension that matters - everything else is irrelevant to whether the output is valid or not
@@ -220,8 +220,8 @@ class BaseWorkflow:
                     ## Output
                     {{ output }}
                 """,
-                echo=echo,
-            ),
+                "echo": echo,
+            },
         )
         return issue_node
 
@@ -267,8 +267,7 @@ class BaseWorkflow:
 
         ############################
         if result is False and (
-            isinstance(config, ThresholdVotingValidationConfig)
-            or isinstance(config, KAheadVotingValidationConfig)
+            isinstance(config, (ThresholdVotingValidationConfig, KAheadVotingValidationConfig))
         ):
             pass  # TODO: consolidate failure reasonings here
         ############################
@@ -312,12 +311,12 @@ class BaseWorkflow:
             issue_node = Node[bool](
                 uuid=f"validation: {issue}",
                 coroutine=self._run_issue,
-                kwargs=dict(
-                    issue=issue,
-                    task_node=task_node,
-                    config=config,
-                    echo=echo,
-                ),
+                kwargs={
+                    "issue": issue,
+                    "task_node": task_node,
+                    "config": config,
+                    "echo": echo,
+                },
             )
             issue_nodes.append(issue_node)
         executor = TreeExecutor[bool](
@@ -372,19 +371,19 @@ class BaseWorkflow:
             validation_node = Node[bool](
                 uuid=f"{response_model.__name__}_validation_node",
                 coroutine=self._run_validations,
-                kwargs=dict(
-                    task_node=task_node,
-                    config=config,
-                    echo=echo,
-                ),
+                kwargs={
+                    "task_node": task_node,
+                    "config": config,
+                    "echo": echo,
+                },
             )
             validation_node.on_after_run = (
                 self._redirect,
-                dict(
-                    task_node=task_node,
-                    validation_node=validation_node,
-                    config=config,
-                ),
+                {
+                    "task_node": task_node,
+                    "validation_node": validation_node,
+                    "config": config,
+                },
             )
 
             await task_node.connect(validation_node)

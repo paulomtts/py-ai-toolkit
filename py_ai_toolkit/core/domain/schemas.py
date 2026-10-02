@@ -32,7 +32,7 @@ class CompletionResponse(BaseModel, Generic[S]):
         """
         Returns the instance of the response model of the completion response.
         """
-        if isinstance(self.content, str) or isinstance(self.content, list):
+        if isinstance(self.content, (str, list)):
             raise ValueError("Content is not structured.")
         return self.content
 

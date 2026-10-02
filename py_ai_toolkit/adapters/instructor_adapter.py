@@ -31,17 +31,17 @@ class InstructorAdapter(LLMPort):
         self._model = model
         self._embedding_model = embedding_model
 
-        client_kwargs = dict(
-            api_key=api_key,
-            base_url=base_url,
-        )
+        client_kwargs = {
+            "api_key": api_key,
+            "base_url": base_url,
+        }
         if not base_url:
             client_kwargs["base_url"] = "http://localhost:11434/v1"
         self.openai_client = AsyncOpenAI(**client_kwargs)  # type: ignore
-        instructor_kwargs = dict(
-            client=self.openai_client,
-            mode=instructor.Mode.JSON,
-        )
+        instructor_kwargs = {
+            "client": self.openai_client,
+            "mode": instructor.Mode.JSON,
+        }
         if reasoning_effort:
             instructor_kwargs["reasoning_effort"] = reasoning_effort
         self.client = instructor.from_openai(**instructor_kwargs)
