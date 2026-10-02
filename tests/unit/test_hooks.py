@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields
 from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
@@ -7,14 +7,23 @@ from openai.types.chat import ChatCompletion
 from pydantic import BaseModel as PydanticBaseModel
 
 from py_ai_toolkit.adapters import Jinja2Adapter
+from py_ai_toolkit.core.domain.classifier import (
+    ChoiceQuestion,
+    ClassifierResponse,
+    ClassifierUsage,
+    NoulAnswer,
+    NoulQuestion,
+)
 from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
     SingleShotValidationConfig,
 )
 from py_ai_toolkit.core.hooks import (
+    AfterClassifyContext,
     AfterLLMCallContext,
     AfterRenderContext,
     AfterValidationContext,
+    BeforeClassifyContext,
     BeforeLLMCallContext,
     BeforeRenderContext,
     BeforeValidationContext,
@@ -78,6 +87,96 @@ def test_on_retry_context_is_frozen():
         ctx.current_retry = 2
 
 
+def _classifier_response(usage: ClassifierUsage) -> ClassifierResponse:
+    return ClassifierResponse(
+        model="jev-1",
+        answers={"q": NoulAnswer(noul=0.5)},
+        usage=usage,
+    )
+
+
+def test_before_classify_context_is_frozen():
+    ctx = BeforeClassifyContext(
+        state="some text",
+        questions={"q": NoulQuestion()},
+        model="jev-1",
+    )
+    for name, value in (("state", "other"), ("questions", {}), ("model", "other")):
+        with pytest.raises(FrozenInstanceError):
+            setattr(ctx, name, value)
+
+
+def test_before_classify_context_holds_fields():
+    questions = {
+        "q": NoulQuestion(),
+        "c": ChoiceQuestion(criteria={"yes": None, "no": "not at all"}),
+    }
+
+    text_ctx = BeforeClassifyContext(
+        state="some text", questions=questions, model="jev-1"
+    )
+    assert text_ctx.state == "some text"
+    assert text_ctx.questions is questions
+    assert text_ctx.model == "jev-1"
+
+    dict_ctx = BeforeClassifyContext(
+        state={"ticket": "refund please"}, questions=questions, model="jev-1"
+    )
+    assert dict_ctx.state == {"ticket": "refund please"}
+
+    list_ctx = BeforeClassifyContext(
+        state=["turn 1", {"turn": 2}], questions=questions, model="jev-1"
+    )
+    assert list_ctx.state == ["turn 1", {"turn": 2}]
+
+
+def test_after_classify_context_is_frozen():
+    usage = ClassifierUsage(input_tokens=12, output_tokens=3)
+    ctx = AfterClassifyContext(
+        response=_classifier_response(usage),
+        model="jev-1",
+        elapsed_ms=42.0,
+        usage=usage,
+    )
+    for name, value in (
+        ("response", None),
+        ("model", "other"),
+        ("elapsed_ms", 0.0),
+        ("usage", ClassifierUsage()),
+    ):
+        with pytest.raises(FrozenInstanceError):
+            setattr(ctx, name, value)
+
+
+def test_after_classify_context_carries_usage():
+    usage = ClassifierUsage(input_tokens=12, output_tokens=3)
+    ctx = AfterClassifyContext(
+        response=_classifier_response(usage),
+        model="jev-1",
+        elapsed_ms=42.0,
+        usage=usage,
+    )
+    assert ctx.model == "jev-1"
+    assert ctx.elapsed_ms == 42.0
+    assert ctx.response.answers["q"].noul == 0.5
+    assert ctx.usage.input_tokens == 12
+    assert ctx.usage.output_tokens == 3
+    assert ctx.response.usage.input_tokens == 12
+    assert ctx.response.usage.output_tokens == 3
+
+
+def test_after_classify_context_accepts_unreported_usage():
+    usage = ClassifierUsage()
+    ctx = AfterClassifyContext(
+        response=_classifier_response(usage),
+        model="jev-1",
+        elapsed_ms=1.5,
+        usage=usage,
+    )
+    assert ctx.usage.input_tokens is None
+    assert ctx.usage.output_tokens is None
+
+
 def test_hooks_defaults_to_none():
     hooks = Hooks()
     assert hooks.before_render is None
@@ -97,6 +196,65 @@ def test_hooks_accepts_callbacks():
     assert hooks.before_render is my_hook
     assert hooks.after_llm_call is my_hook
     assert hooks.after_render is None
+
+
+def test_hooks_classify_fields_default_to_none():
+    hooks = Hooks()
+    assert hooks.before_classify is None
+    assert hooks.after_classify is None
+
+
+def test_hooks_accepts_classify_callbacks():
+    async def on_before(ctx):
+        pass
+
+    async def on_after(ctx):
+        pass
+
+    hooks = Hooks(
+        before_classify=on_before,
+        after_classify=on_after,
+        after_embed=on_after,
+    )
+    assert hooks.before_classify is on_before
+    assert hooks.after_classify is on_after
+    assert hooks.after_embed is on_after
+    assert hooks.after_render is None
+    assert hooks.on_retry is None
+
+
+def test_hooks_existing_construction_unaffected():
+    async def first(ctx):
+        pass
+
+    async def second(ctx):
+        pass
+
+    keyword = Hooks(before_render=first, after_llm_call=second)
+    assert keyword.before_render is first
+    assert keyword.after_llm_call is second
+    assert keyword.before_classify is None
+    assert keyword.after_classify is None
+
+    positional = Hooks(first, second)
+    assert positional.before_render is first
+    assert positional.after_render is second
+    assert positional.before_classify is None
+    assert positional.after_classify is None
+
+    assert [f.name for f in fields(Hooks)] == [
+        "before_render",
+        "after_render",
+        "before_llm_call",
+        "after_llm_call",
+        "after_embed",
+        "after_embed_batch",
+        "before_validation",
+        "after_validation",
+        "on_retry",
+        "before_classify",
+        "after_classify",
+    ]
 
 
 def test_fire_hook_calls_callback():

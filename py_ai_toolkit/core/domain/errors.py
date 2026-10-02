@@ -26,3 +26,13 @@ class FormatterAdapterError(Exception):
     def __init__(self, message: str = ""):
         super().__init__(message)
         self.message = message
+
+
+class ClassifierAdapterError(Exception):
+    """
+    Exception raised when an error occurs in the classifier adapter.
+    """
+
+    def __init__(self, message: str = ""):
+        super().__init__(message)
+        self.message = message
