@@ -875,6 +875,25 @@ def test_classify_reports_non_negative_elapsed_ms(monkeypatch):
     assert after_ctx.elapsed_ms >= 0
 
 
+def test_classify_elapsed_ms_measures_the_classifier_call(monkeypatch):
+    import py_ai_toolkit.core.toolkit as toolkit_module
+
+    clock = {"now": 10.0}
+    monkeypatch.setattr(toolkit_module.time, "perf_counter", lambda: clock["now"])
+
+    class SlowClassifier(FakeClassifier):
+        async def classify(self, state, questions):
+            clock["now"] += 0.25
+            return await super().classify(state, questions)
+
+    toolkit = _toolkit_with(monkeypatch, SlowClassifier())
+    hooks, events = _recording_hooks()
+
+    run(toolkit.classify("text", QUESTIONS, hooks=hooks))
+
+    assert events[-1][1].elapsed_ms == pytest.approx(250.0)
+
+
 def test_classify_without_hooks_returns_response(monkeypatch):
     fake = FakeClassifier()
     toolkit = _toolkit_with(monkeypatch, fake)
