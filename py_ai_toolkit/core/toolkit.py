@@ -23,7 +23,9 @@ from py_ai_toolkit.core.hooks import (
     AfterEmbedContext,
     AfterEmbedBatchContext,
 )
+from py_ai_toolkit.core.ports import ClassifierPort
 from py_ai_toolkit.factories import (
+    create_classifier,
     create_llm_client,
     create_model_handler,
     create_prompt_formatter,
@@ -61,6 +63,15 @@ class PyAIToolkit:
             ]
         self.prompt_formatter = create_prompt_formatter()
         self.model_handler = create_model_handler()
+
+        classifier_api_key = os.getenv("CLASSIFIER_API_KEY")
+        classifier_model = os.getenv("CLASSIFIER_MODEL") or "jev-latest"
+        classifier_base_url = os.getenv("CLASSIFIER_BASE_URL")
+        self.classifier: ClassifierPort | None = None
+        if classifier_api_key:
+            self.classifier = create_classifier(
+                classifier_api_key, classifier_model, classifier_base_url
+            )
 
     def inject_types(
         self,

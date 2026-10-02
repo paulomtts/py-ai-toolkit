@@ -30,8 +30,10 @@ from py_ai_toolkit.core.domain.classifier import (
     validate_question_names,
 )
 from py_ai_toolkit.core.domain.errors import ClassifierAdapterError, LLMAdapterError
+from py_ai_toolkit.core.domain.schemas import LLMConfig
 from py_ai_toolkit.core.ports.classifier_port import ClassifierPort
 from py_ai_toolkit.core.ports.llm_port import LLMPort
+from py_ai_toolkit.core.toolkit import PyAIToolkit
 
 JSON_FORMS = ["plain text", {"rule": "is spam", "examples": [1, 2]}, ["a", "b"], None]
 
@@ -569,3 +571,90 @@ def test_package_imports_survive_missing_sdk():
     )
 
     assert result.returncode == 0, result.stderr
+
+
+# PyAIToolkit classifier construction
+
+CLASSIFIER_ENV = ("CLASSIFIER_API_KEY", "CLASSIFIER_MODEL", "CLASSIFIER_BASE_URL")
+LLM_CONFIG = LLMConfig(api_key="test-llm-key", model="test-llm-model")
+
+
+def _clear_classifier_env(monkeypatch):
+    for name in CLASSIFIER_ENV:
+        monkeypatch.delenv(name, raising=False)
+
+
+class RecordingFactory:
+    def __init__(self):
+        self.calls = []
+        self.returned = MinimalClassifier()
+
+    def __call__(self, api_key, model="jev-latest", base_url=None):
+        self.calls.append((api_key, model, base_url))
+        return self.returned
+
+
+def _patch_factory(monkeypatch):
+    factory = RecordingFactory()
+    monkeypatch.setattr("py_ai_toolkit.core.toolkit.create_classifier", factory)
+    return factory
+
+
+def test_toolkit_without_classifier_config_or_env_has_no_classifier(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    factory = _patch_factory(monkeypatch)
+
+    toolkit = PyAIToolkit(main_model_config=LLM_CONFIG)
+
+    assert toolkit.classifier is None
+    assert factory.calls == []
+    assert isinstance(toolkit.llm_client, LLMPort)
+    assert toolkit.llm_client._model == "test-llm-model"
+    assert toolkit.prompt_formatter is not None
+    assert toolkit.model_handler is not None
+
+
+def test_toolkit_env_key_set_after_import_activates_classifier(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    monkeypatch.setenv("CLASSIFIER_API_KEY", "env-key")
+    monkeypatch.setenv("CLASSIFIER_MODEL", "env-model")
+    monkeypatch.setenv("CLASSIFIER_BASE_URL", "https://env.invalid")
+    factory = _patch_factory(monkeypatch)
+
+    toolkit = PyAIToolkit(
+        main_model_config=LLM_CONFIG,
+        alternative_models_configs=[
+            LLMConfig(api_key="alt-key", model="alt-model", embedding_model="")
+        ],
+    )
+
+    assert factory.calls == [("env-key", "env-model", "https://env.invalid")]
+    assert toolkit.classifier is factory.returned
+    assert toolkit.llm_client._model == "test-llm-model"
+    assert len(toolkit.alternative_llm_clients) == 1
+
+
+def test_toolkit_empty_env_key_does_not_activate_classifier(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    monkeypatch.setenv("CLASSIFIER_API_KEY", "")
+    factory = _patch_factory(monkeypatch)
+
+    toolkit = PyAIToolkit(main_model_config=LLM_CONFIG)
+
+    assert toolkit.classifier is None
+    assert factory.calls == []
+
+
+def test_toolkit_env_key_without_jev_extra_raises_install_hint(monkeypatch):
+    _clear_classifier_env(monkeypatch)
+    monkeypatch.setenv("CLASSIFIER_API_KEY", "env-key")
+    monkeypatch.delitem(
+        sys.modules, "py_ai_toolkit.adapters.jev_adapter", raising=False
+    )
+    monkeypatch.setitem(sys.modules, "typesafe_sdk", None)
+
+    with pytest.raises(ImportError) as exc_info:
+        PyAIToolkit(main_model_config=LLM_CONFIG)
+
+    assert str(exc_info.value) == INSTALL_HINT
+    assert isinstance(exc_info.value.__cause__, ImportError)
