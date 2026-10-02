@@ -18,10 +18,8 @@ def create_llm_client(
     Factory function to create an LLMClient instance with default configuration.
 
     Args:
-        model (Optional[str]): The model to use for completions. Defaults to
-            LLM_MODEL env var.
-        embedding_model (Optional[str]): The model to use for embeddings.
-            Defaults to EMBEDDING_MODEL env var.
+        model (Optional[str]): The model to use for completions. Defaults to LLM_MODEL env var.
+        embedding_model (Optional[str]): The model to use for embeddings. Defaults to EMBEDDING_MODEL env var.
 
     Returns:
         LLMClient: Configured LLM client instance
