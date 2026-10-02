@@ -1,5 +1,10 @@
 from py_ai_toolkit.adapters import InstructorAdapter, Jinja2Adapter, PydanticAdapter
-from py_ai_toolkit.core.ports import FormatterPort, LLMPort, ModellerPort
+from py_ai_toolkit.core.ports import (
+    ClassifierPort,
+    FormatterPort,
+    LLMPort,
+    ModellerPort,
+)
 
 
 def create_llm_client(
@@ -13,8 +18,10 @@ def create_llm_client(
     Factory function to create an LLMClient instance with default configuration.
 
     Args:
-        model (Optional[str]): The model to use for completions. Defaults to LLM_MODEL env var.
-        embedding_model (Optional[str]): The model to use for embeddings. Defaults to EMBEDDING_MODEL env var.
+        model (Optional[str]): The model to use for completions. Defaults to
+            LLM_MODEL env var.
+        embedding_model (Optional[str]): The model to use for embeddings.
+            Defaults to EMBEDDING_MODEL env var.
 
     Returns:
         LLMClient: Configured LLM client instance
@@ -49,3 +56,32 @@ def create_model_handler() -> ModellerPort:
         ResponseModelService: Configured model handler instance
     """
     return PydanticAdapter()
+
+
+def create_classifier(
+    api_key: str,
+    model: str = "jev-latest",
+    base_url: str | None = None,
+) -> ClassifierPort:
+    """
+    Factory function to create a Jev classifier instance.
+
+    Args:
+        api_key (str): The Jev API key.
+        model (str): The Jev model to classify with. Defaults to "jev-latest".
+        base_url (Optional[str]): Jev API base URL override. Defaults to None.
+
+    Returns:
+        ClassifierPort: Configured classifier instance backed by JevAdapter
+
+    Raises:
+        ImportError: If the optional 'jev' extra (typesafe-sdk) is not installed
+    """
+    try:
+        from py_ai_toolkit.adapters.jev_adapter import JevAdapter
+    except ImportError as exc:
+        raise ImportError(
+            "The Jev classifier requires the 'jev' extra: "
+            "pip install 'py-ai-toolkit[jev]'."
+        ) from exc
+    return JevAdapter(api_key=api_key, model=model, base_url=base_url)
