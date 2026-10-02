@@ -27,6 +27,8 @@ S = TypeVar("S", bound=BaseModel)
 V = TypeVar("V", bound=BaseIssue)
 T = TypeVar("T", bound=BaseModel)
 
+_DEFAULT_VALIDATION_CONFIG = SingleShotValidationConfig()
+
 
 class BaseWorkflow:
     """
@@ -345,7 +347,7 @@ class BaseWorkflow:
         template: str,
         response_model: type[S],
         kwargs: dict[str, Any],
-        config: ValidationConfig = SingleShotValidationConfig(),
+        config: ValidationConfig = _DEFAULT_VALIDATION_CONFIG,
         echo: bool = False,
     ) -> TreeExecutor[S | V]:
         """
@@ -401,7 +403,7 @@ class BaseWorkflow:
         template: str,
         response_model: type[S],
         kwargs: dict[str, Any],
-        config: ValidationConfig = SingleShotValidationConfig(),
+        config: ValidationConfig = _DEFAULT_VALIDATION_CONFIG,
     ) -> Node[S]:
         """
         Convenience method for creating a node that contains a subtree that runs a task and validates the output.

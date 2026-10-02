@@ -41,6 +41,8 @@ from py_ai_toolkit.factories import (
 
 T = TypeVar("T", bound=BaseModel)
 
+_DEFAULT_VALIDATION_CONFIG = SingleShotValidationConfig()
+
 
 class PyAIToolkit:
     """
@@ -442,7 +444,7 @@ class PyAIToolkit:
         template: str,
         response_model: type[T],
         kwargs: dict[str, Any],
-        config: ValidationConfig = SingleShotValidationConfig(),
+        config: ValidationConfig = _DEFAULT_VALIDATION_CONFIG,
         echo: bool = False,
         *,
         hooks: Hooks | None = None,
