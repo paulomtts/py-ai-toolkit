@@ -201,7 +201,7 @@ except ValidationError as exc:
     print(exc)
 ```
 
-`classify()` does not check your question names, so use non-empty string names. Answer names on `ClassifierResponse` are validated: a response with an empty answer name fails validation.
+`classify()` checks your question names before any network call: every name must be a non-empty string, otherwise it raises `ValueError`. Answer names on `ClassifierResponse` are validated the same way.
 
 ## Errors
 
@@ -209,6 +209,7 @@ except ValidationError as exc:
 |---|---|---|
 | No classifier configured | `ClassifierAdapterError` | at `classify()` |
 | `questions` is empty | `ValueError("questions must not be empty.")` | at `classify()` |
+| A question name is empty or not a string | `ValueError` | at `classify()`, before hooks fire |
 | Any SDK or API failure | `ClassifierAdapterError` | at `classify()` |
 | `classifier_config` passed, no API key anywhere | `ValueError` | at `PyAIToolkit(...)` |
 | `jev` extra not installed | `ImportError` | at `PyAIToolkit(...)` |

@@ -214,7 +214,7 @@ async def classify(
 **Raises:**
 
 - `ClassifierAdapterError`: no classifier is configured, or the SDK/API call failed (the original exception is on `__cause__`)
-- `ValueError`: `questions` is empty (`questions must not be empty.`)
+- `ValueError`: `questions` is empty (`questions must not be empty.`), or a question name is not a non-empty string
 
 **Example:**
 

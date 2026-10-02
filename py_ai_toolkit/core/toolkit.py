@@ -10,6 +10,7 @@ from py_ai_toolkit.core.domain.classifier import (
     ClassifierConfig,
     ClassifierResponse,
     Question,
+    validate_question_names,
 )
 from py_ai_toolkit.core.domain.errors import ClassifierAdapterError, WorkflowError
 from py_ai_toolkit.core.domain.schemas import (
@@ -253,6 +254,7 @@ class PyAIToolkit:
             )
         if not questions:
             raise ValueError("questions must not be empty.")
+        validate_question_names(questions)
 
         if hooks:
             await _fire_hook(

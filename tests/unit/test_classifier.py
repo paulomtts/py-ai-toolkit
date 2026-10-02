@@ -994,6 +994,20 @@ def test_classify_empty_questions_raises_without_firing_hooks(monkeypatch):
     assert fake.calls == []
 
 
+@pytest.mark.parametrize("bad_name", ["", 1])
+def test_classify_bad_question_name_raises_without_firing_hooks(monkeypatch, bad_name):
+    fake = FakeClassifier()
+    toolkit = _toolkit_with(monkeypatch, fake)
+    hooks, events = _recording_hooks()
+    questions = {"ok": NoulQuestion(), bad_name: NoulQuestion()}
+
+    with pytest.raises(ValueError, match="non-empty strings"):
+        run(toolkit.classify("text", questions, hooks=hooks))
+
+    assert events == []
+    assert fake.calls == []
+
+
 def test_classify_rejects_empty_non_dict_mapping(monkeypatch):
     fake = FakeClassifier()
     toolkit = _toolkit_with(monkeypatch, fake)
