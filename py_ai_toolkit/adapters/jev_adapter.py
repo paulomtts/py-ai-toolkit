@@ -8,7 +8,20 @@ an optional dependency (the `jev` extra).
 from collections.abc import Mapping
 from typing import Any
 
-from typesafe_sdk import AsyncTypeSafeClient, Choice, Noul, Score, SystemOneResponse
+from typesafe_sdk import (
+    AsyncTypeSafeClient,
+    Choice,
+    Noul,
+    Score,
+    SystemOneResponse,
+    TypeSafeAPIConnectionError,
+    TypeSafeAPIResponseValidationError,
+    TypeSafeAuthenticationError,
+    TypeSafeError,
+    TypeSafeInternalServerError,
+    TypeSafeRateLimitError,
+    TypeSafeUnprocessableEntityError,
+)
 
 from py_ai_toolkit.core.domain.classifier import (
     Answer,
@@ -23,6 +36,7 @@ from py_ai_toolkit.core.domain.classifier import (
     ScoreAnswer,
     ScoreQuestion,
 )
+from py_ai_toolkit.core.domain.errors import ClassifierAdapterError
 from py_ai_toolkit.core.ports import ClassifierPort
 
 
@@ -97,6 +111,35 @@ def _to_classifier_response(response: SystemOneResponse) -> ClassifierResponse:
     )
 
 
+def _to_adapter_error(exc: TypeSafeError) -> ClassifierAdapterError:
+    # Order matters: every specific class below except the connection pair
+    # subclasses TypeSafeAPIError, and TypeSafeAPITimeoutError subclasses
+    # TypeSafeAPIConnectionError. The generic TypeSafeError branch is last.
+    if isinstance(exc, TypeSafeAuthenticationError):
+        return ClassifierAdapterError(
+            f"Jev authentication failed: invalid or missing Jev API key ({exc})"
+        )
+    if isinstance(exc, TypeSafeUnprocessableEntityError):
+        return ClassifierAdapterError(
+            f"Jev rejected the request as invalid: {exc.body}"
+        )
+    if isinstance(exc, TypeSafeRateLimitError):
+        return ClassifierAdapterError(
+            f"Jev rate limited the request (retry_after_ms={exc.retry_after_ms})"
+        )
+    if isinstance(exc, TypeSafeInternalServerError):
+        return ClassifierAdapterError(f"Jev is unavailable or overloaded: {exc}")
+    if isinstance(exc, TypeSafeAPIConnectionError):
+        return ClassifierAdapterError(
+            f"Network failure or timeout while calling Jev: {exc}"
+        )
+    if isinstance(exc, TypeSafeAPIResponseValidationError):
+        return ClassifierAdapterError(
+            f"Malformed response from Jev at field {exc.field_path!r}"
+        )
+    return ClassifierAdapterError(f"Jev request failed: {exc}")
+
+
 class JevAdapter(ClassifierPort):
     """
     TypeSafe AI (Jev) implementation of the classifier port.
@@ -123,5 +166,11 @@ class JevAdapter(ClassifierPort):
         sdk_questions = {
             name: _to_sdk_question(question) for name, question in questions.items()
         }
-        response = await self._client.system_one(state, sdk_questions)
+        try:
+            response = await self._client.system_one(state, sdk_questions)
+        except TypeSafeError as exc:
+            raise _to_adapter_error(exc) from exc
         return _to_classifier_response(response)
+
+    async def aclose(self) -> None:
+        await self._client.aclose()

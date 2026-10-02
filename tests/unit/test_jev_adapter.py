@@ -8,6 +8,8 @@ import pytest
 
 typesafe_sdk = pytest.importorskip("typesafe_sdk")
 
+import httpx2  # noqa: E402
+
 from py_ai_toolkit.adapters.jev_adapter import JevAdapter  # noqa: E402
 from py_ai_toolkit.core.domain.classifier import (  # noqa: E402
     ChoiceAnswer,
@@ -20,6 +22,7 @@ from py_ai_toolkit.core.domain.classifier import (  # noqa: E402
     ScoreAnswer,
     ScoreQuestion,
 )
+from py_ai_toolkit.core.domain.errors import ClassifierAdapterError  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 STATE = "I was charged twice. Please help."
@@ -72,6 +75,12 @@ def _sdk_response(input_tokens=12, output_tokens=3):
 def _adapter_returning(response):
     adapter = JevAdapter(api_key="test-key")
     adapter._client = SimpleNamespace(system_one=AsyncMock(return_value=response))
+    return adapter
+
+
+def _adapter_raising(exc):
+    adapter = JevAdapter(api_key="test-key")
+    adapter._client = SimpleNamespace(system_one=AsyncMock(side_effect=exc))
     return adapter
 
 
@@ -289,3 +298,142 @@ async def test_structured_state_and_instructions_pass_through():
     assert sent_state == state
     assert isinstance(sdk_questions["billing"], typesafe_sdk.Noul)
     assert sdk_questions["billing"].instructions == instructions
+
+
+def _headers(**values):
+    return httpx2.Headers(values)
+
+
+ERROR_CASES = [
+    pytest.param(
+        typesafe_sdk.TypeSafeAuthenticationError(
+            401, {"detail": "bad key"}, _headers()
+        ),
+        lambda exc: ["invalid or missing jev api key"],
+        id="auth-401",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeUnprocessableEntityError(
+            422, {"detail": "criteria must not be empty"}, _headers()
+        ),
+        lambda exc: ["rejected the request as invalid", str(exc.body)],
+        id="unprocessable-422",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeUnprocessableEntityError(422, None, _headers()),
+        lambda exc: ["rejected the request as invalid", "None"],
+        id="unprocessable-422-no-body",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeRateLimitError(
+            429, {"detail": "slow down"}, _headers(**{"retry-after": "2"})
+        ),
+        lambda exc: ["rate limited", "retry_after_ms=2000.0"],
+        id="rate-limit-429",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeRateLimitError(429, {"detail": "slow down"}, _headers()),
+        lambda exc: ["rate limited", "retry_after_ms=None"],
+        id="rate-limit-no-retry-after",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeInternalServerError(
+            503, {"detail": "overloaded"}, _headers()
+        ),
+        lambda exc: ["unavailable or overloaded"],
+        id="internal-server-5xx",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeAPITimeoutError(5.0),
+        lambda exc: ["network failure or timeout", str(exc)],
+        id="timeout",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeAPIConnectionError("connection refused"),
+        lambda exc: ["network failure or timeout", "connection refused"],
+        id="connection",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeAPIResponseValidationError(
+            200, {"answers": {}}, _headers(), "answers.tone.confidence"
+        ),
+        lambda exc: ["malformed response from jev", "answers.tone.confidence"],
+        id="response-validation",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafePermissionDeniedError(
+            403, {"detail": "model not enabled"}, _headers()
+        ),
+        lambda exc: ["jev request failed", str(exc)],
+        id="permission-403-generic",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeBadRequestError(
+            400, {"detail": "state too long"}, _headers()
+        ),
+        lambda exc: ["jev request failed", str(exc)],
+        id="bad-request-400-generic",
+    ),
+    pytest.param(
+        typesafe_sdk.TypeSafeError("client misconfigured"),
+        lambda exc: ["jev request failed", "client misconfigured"],
+        id="base-typesafe-error-generic",
+    ),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("original", "expected_fragments"), ERROR_CASES)
+async def test_sdk_error_mapped_to_classifier_adapter_error(
+    original, expected_fragments
+):
+    adapter = _adapter_raising(original)
+
+    with pytest.raises(ClassifierAdapterError) as excinfo:
+        await adapter.classify(STATE, _questions())
+
+    raised = excinfo.value
+    assert raised.__cause__ is original
+    assert raised.message == str(raised)
+    for fragment in expected_fragments(original):
+        assert fragment.lower() in raised.message.lower()
+
+
+def test_timeout_case_is_both_timeout_and_connection_error():
+    exc = typesafe_sdk.TypeSafeAPITimeoutError(5.0)
+    assert isinstance(exc, typesafe_sdk.TypeSafeAPIConnectionError)
+    assert isinstance(exc, TimeoutError)
+
+
+@pytest.mark.asyncio
+async def test_non_sdk_error_propagates_unchanged():
+    original = RuntimeError("stub client exploded")
+    adapter = _adapter_raising(original)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        await adapter.classify(STATE, _questions())
+
+    assert excinfo.value is original
+    assert not isinstance(excinfo.value, ClassifierAdapterError)
+
+
+@pytest.mark.asyncio
+async def test_response_mapping_error_propagates_unchanged():
+    adapter = _adapter_returning(SimpleNamespace(model="jev-2026-09"))
+
+    with pytest.raises(AttributeError) as excinfo:
+        await adapter.classify(STATE, _questions())
+
+    assert not isinstance(excinfo.value, ClassifierAdapterError)
+    assert excinfo.value.__cause__ is None
+
+
+@pytest.mark.asyncio
+async def test_aclose_closes_sdk_client():
+    adapter = JevAdapter(api_key="test-key")
+    client_aclose = AsyncMock()
+    adapter._client = SimpleNamespace(aclose=client_aclose)
+
+    await adapter.aclose()
+
+    client_aclose.assert_awaited_once()
