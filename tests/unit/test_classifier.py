@@ -660,8 +660,6 @@ def test_toolkit_env_key_without_jev_extra_raises_install_hint(monkeypatch):
     assert isinstance(exc_info.value.__cause__, ImportError)
 
 
-
-
 MISSING_KEY_MESSAGE = "ClassifierConfig requires an api_key or CLASSIFIER_API_KEY."
 
 
@@ -756,9 +754,7 @@ def test_toolkit_propagates_factory_errors_unchanged(monkeypatch):
     def failing_factory(api_key, model="jev-latest", base_url=None):
         raise inner
 
-    monkeypatch.setattr(
-        "py_ai_toolkit.core.toolkit.create_classifier", failing_factory
-    )
+    monkeypatch.setattr("py_ai_toolkit.core.toolkit.create_classifier", failing_factory)
 
     with pytest.raises(RuntimeError) as exc_info:
         PyAIToolkit(
