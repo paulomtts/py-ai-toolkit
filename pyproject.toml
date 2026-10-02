@@ -46,3 +46,9 @@ jev = [
 [tool.setuptools.packages.find]
 include = ["py_ai_toolkit*"]
 exclude = ["site*", "tests*"]
+
+[tool.ruff.lint.per-file-ignores]
+# Imports after pytest.importorskip("typesafe_sdk") are intentional: the module
+# must be skipped before it imports the optional SDK.
+"tests/unit/test_jev_adapter.py" = ["E402"]
+"tests/live/test_jev_live.py" = ["E402"]
