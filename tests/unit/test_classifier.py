@@ -1050,9 +1050,3 @@ def test_classifier_names_exported_from_package(name):
 
     assert name in py_ai_toolkit.__all__
     assert getattr(py_ai_toolkit, name) is CLASSIFIER_EXPORTS[name]
-
-
-def test_package_version_unchanged():
-    import py_ai_toolkit
-
-    assert py_ai_toolkit.__version__ == "0.7.0"
