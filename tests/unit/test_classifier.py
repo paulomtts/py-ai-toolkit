@@ -1004,3 +1004,35 @@ def test_aclose_without_classifier_is_noop(monkeypatch):
     assert toolkit.classifier is None
 
     assert run(toolkit.aclose()) is None
+
+
+# Public exports
+
+CLASSIFIER_EXPORTS = {
+    "ClassifierConfig": ClassifierConfig,
+    "ClassifierResponse": ClassifierResponse,
+    "ClassifierUsage": ClassifierUsage,
+    "NoulQuestion": NoulQuestion,
+    "ChoiceQuestion": ChoiceQuestion,
+    "ScoreQuestion": ScoreQuestion,
+    "NoulAnswer": NoulAnswer,
+    "ChoiceAnswer": ChoiceAnswer,
+    "ScoreAnswer": ScoreAnswer,
+    "Question": Question,
+    "Answer": Answer,
+    "ClassifierAdapterError": ClassifierAdapterError,
+}
+
+
+@pytest.mark.parametrize("name", sorted(CLASSIFIER_EXPORTS))
+def test_classifier_names_exported_from_package(name):
+    import py_ai_toolkit
+
+    assert name in py_ai_toolkit.__all__
+    assert getattr(py_ai_toolkit, name) is CLASSIFIER_EXPORTS[name]
+
+
+def test_package_version_unchanged():
+    import py_ai_toolkit
+
+    assert py_ai_toolkit.__version__ == "0.7.0"
