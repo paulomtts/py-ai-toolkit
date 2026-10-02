@@ -8,18 +8,66 @@ an optional dependency (the `jev` extra).
 from collections.abc import Mapping
 from typing import Any
 
-from typesafe_sdk import AsyncTypeSafeClient, SystemOneResponse
+from typesafe_sdk import AsyncTypeSafeClient, Choice, Noul, Score, SystemOneResponse
 
 from py_ai_toolkit.core.domain.classifier import (
     Answer,
     ChoiceAnswer,
+    ChoiceQuestion,
     ClassifierResponse,
     ClassifierUsage,
     NoulAnswer,
+    NoulCriteria,
+    NoulQuestion,
     Question,
     ScoreAnswer,
+    ScoreQuestion,
 )
 from py_ai_toolkit.core.ports import ClassifierPort
+
+
+def _noul_criteria(criteria: NoulCriteria | None) -> dict[str, Any] | None:
+    if criteria is None:
+        return None
+    mapped: dict[str, Any] = {}
+    if criteria.true is not None:
+        mapped["true"] = criteria.true
+    if criteria.false is not None:
+        mapped["false"] = criteria.false
+    return mapped
+
+
+def _to_noul(question: NoulQuestion) -> Noul:
+    return Noul(
+        instructions=question.instructions,
+        criteria=_noul_criteria(question.criteria),
+    )
+
+
+def _to_choice(question: ChoiceQuestion) -> Choice:
+    return Choice(
+        instructions=question.instructions,
+        criteria=dict(question.criteria),
+    )
+
+
+def _to_score(question: ScoreQuestion) -> Score:
+    return Score(
+        instructions=question.instructions,
+        criteria=list(question.criteria),
+    )
+
+
+def _to_sdk_question(question: Question) -> Noul | Choice | Score:
+    if isinstance(question, NoulQuestion):
+        return _to_noul(question)
+    if isinstance(question, ChoiceQuestion):
+        return _to_choice(question)
+    if isinstance(question, ScoreQuestion):
+        return _to_score(question)
+    raise TypeError(
+        f"Unsupported question type for JevAdapter: {type(question).__name__}"
+    )
 
 
 def _to_classifier_response(response: SystemOneResponse) -> ClassifierResponse:
@@ -72,5 +120,8 @@ class JevAdapter(ClassifierPort):
         state: str | dict[str, Any] | list[Any],
         questions: Mapping[str, Question],
     ) -> ClassifierResponse:
-        response = await self._client.system_one(state, questions)
+        sdk_questions = {
+            name: _to_sdk_question(question) for name, question in questions.items()
+        }
+        response = await self._client.system_one(state, sdk_questions)
         return _to_classifier_response(response)

@@ -182,3 +182,84 @@ def test_adapters_package_does_not_import_sdk():
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.asyncio
+async def test_question_mapping():
+    adapter = _adapter_returning(_sdk_response())
+
+    await adapter.classify(STATE, _questions())
+
+    system_one = adapter._client.system_one
+    system_one.assert_awaited_once()
+    args, kwargs = system_one.await_args
+    assert kwargs == {}
+    state, sdk_questions = args
+    assert state == STATE
+    assert set(sdk_questions) == {"billing", "tone", "urgency"}
+
+    billing = sdk_questions["billing"]
+    assert isinstance(billing, typesafe_sdk.Noul)
+    assert billing.instructions == "Is this about billing?"
+    assert billing.criteria == {
+        "true": "mentions a charge",
+        "false": "no charge mentioned",
+    }
+
+    tone = sdk_questions["tone"]
+    assert isinstance(tone, typesafe_sdk.Choice)
+    assert tone.instructions == "What is the tone?"
+    assert dict(tone.criteria) == {"calm": "measured wording", "angry": None}
+
+    urgency = sdk_questions["urgency"]
+    assert isinstance(urgency, typesafe_sdk.Score)
+    assert urgency.instructions == "How urgent is it?"
+    assert list(urgency.criteria) == ["low", "medium", "high"]
+
+
+@pytest.mark.asyncio
+async def test_noul_criteria_none():
+    adapter = _adapter_returning(_sdk_response())
+
+    await adapter.classify(
+        STATE,
+        {
+            "no_criteria": NoulQuestion(instructions="Is this spam?"),
+            "only_true": NoulQuestion(criteria=NoulCriteria(true="asks for a refund")),
+            "only_false": NoulQuestion(criteria=NoulCriteria(false="no refund asked")),
+            "empty": NoulQuestion(criteria=NoulCriteria()),
+        },
+    )
+
+    _, sdk_questions = adapter._client.system_one.await_args.args
+    assert all(isinstance(q, typesafe_sdk.Noul) for q in sdk_questions.values())
+    assert sdk_questions["no_criteria"].criteria is None
+    assert sdk_questions["only_true"].criteria == {"true": "asks for a refund"}
+    assert sdk_questions["only_false"].criteria == {"false": "no refund asked"}
+    assert sdk_questions["empty"].criteria == {}
+
+
+@pytest.mark.asyncio
+async def test_unknown_question_type_raises_before_call():
+    adapter = _adapter_returning(_sdk_response())
+
+    with pytest.raises(TypeError):
+        await adapter.classify(STATE, {"raw": {"type": "noul"}})
+
+    adapter._client.system_one.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_structured_state_and_instructions_pass_through():
+    adapter = _adapter_returning(_sdk_response())
+    state = {"message": "I was charged twice.", "attachments": ["receipt.pdf"]}
+    instructions = {"question": "Is this about billing?", "scope": ["charges"]}
+
+    await adapter.classify(
+        state, {"billing": NoulQuestion(instructions=instructions)}
+    )
+
+    sent_state, sdk_questions = adapter._client.system_one.await_args.args
+    assert sent_state == state
+    assert isinstance(sdk_questions["billing"], typesafe_sdk.Noul)
+    assert sdk_questions["billing"].instructions == instructions
