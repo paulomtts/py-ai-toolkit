@@ -7,10 +7,7 @@ The toolkit provides three primary methods for interacting with LLMs, each suite
 Use `chat()` for simple text-based responses:
 
 ```python
-response = await ait.chat(
-    template="Write a haiku about {{ topic }}",
-    topic="mountains"
-)
+response = await ait.chat(template="Write a haiku about {{ topic }}", topic="mountains")
 
 print(response.content)  # Plain text response
 print(response.completion)  # Raw OpenAI completion object
@@ -31,14 +28,15 @@ class Analysis(BaseModel):
     sentiment: str
     confidence: float
 
+
 response = await ait.asend(
     response_model=Analysis,
     template="Analyze sentiment: {{ text }}",
-    text="This product is amazing!"
+    text="This product is amazing!",
 )
 
-print(response.content.sentiment)    # Type-safe access
-print(response.content.confidence)   # IDE autocomplete works
+print(response.content.sentiment)  # Type-safe access
+print(response.content.confidence)  # IDE autocomplete works
 ```
 
 **Use when:**
@@ -54,8 +52,7 @@ Use `stream()` for real-time text generation:
 
 ```python
 async for chunk in ait.stream(
-    template="Write a story about {{ topic }}",
-    topic="time travel"
+    template="Write a story about {{ topic }}", topic="time travel"
 ):
     print(chunk.content, end="", flush=True)
 ```
@@ -76,9 +73,7 @@ result = await ait.run_task(
     template="Extract key points from: {{ article }}",
     response_model=Summary,
     kwargs=dict(article=article_text),
-    config=SingleShotValidationConfig(
-        issues=["All main points are captured"]
-    )
+    config=SingleShotValidationConfig(issues=["All main points are captured"]),
 )
 ```
 
@@ -98,7 +93,7 @@ Generate vector embeddings for semantic search or similarity:
 ```python
 response = await ait.embed("Machine learning is fascinating")
 vector = response.embedding  # list[float]
-usage = response.usage       # EmbeddingUsage with .prompt_tokens, .total_tokens
+usage = response.usage  # EmbeddingUsage with .prompt_tokens, .total_tokens
 ```
 
 For batch operations (RAG ingestion, knowledge-graph grounding), use `embed_batch()` to send multiple texts in a single API request:

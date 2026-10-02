@@ -48,6 +48,7 @@ nav:
       - Workflows: guide/workflows.md
       - Running Tasks: guide/running-tasks.md
       - Hooks: guide/hooks.md
+      - Classifier: guide/classifier.md
   - API Reference:
       - PyAIToolkit: api/tools.md
       - BaseWorkflow: api/base-workflow.md

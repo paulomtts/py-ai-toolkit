@@ -12,7 +12,7 @@ You can provide prompts in two ways:
 response = await ait.chat(
     template="Translate '{{ text }}' to {{ language }}.",
     text="Hello, world!",
-    language="Spanish"
+    language="Spanish",
 )
 ```
 
@@ -30,9 +30,7 @@ Translate the following text to {{ language }}:
 **Usage:**
 ```python
 response = await ait.chat(
-    template="./prompts/translate.md",
-    text="Hello, world!",
-    language="Spanish"
+    template="./prompts/translate.md", text="Hello, world!", language="Spanish"
 )
 ```
 
@@ -41,10 +39,7 @@ response = await ait.chat(
 Pass any keyword arguments to inject variables:
 
 ```python
-await ait.chat(
-    template="Summarize: {{ article }}",
-    article=long_article_text
-)
+await ait.chat(template="Summarize: {{ article }}", article=long_article_text)
 ```
 
 ## Pydantic Model Serialization
@@ -56,11 +51,12 @@ class User(BaseModel):
     name: str
     age: int
 
+
 user = User(name="Alice", age=30)
 
 response = await ait.chat(
     template="Generate a greeting for: {{ user }}",
-    user=user  # Automatically converted to JSON
+    user=user,  # Automatically converted to JSON
 )
 ```
 
@@ -71,7 +67,7 @@ users = [User(name="Alice", age=30), User(name="Bob", age=25)]
 
 response = await ait.chat(
     template="Summarize these users: {{ users }}",
-    users=users  # Converts to JSON array
+    users=users,  # Converts to JSON array
 )
 ```
 

@@ -1,29 +1,39 @@
 import os
 import random
 import time
-from typing import Any, AsyncGenerator, Type, TypeVar
+from collections.abc import AsyncGenerator, Mapping
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
-from py_ai_toolkit.core.domain.errors import WorkflowError
+from py_ai_toolkit.core.domain.classifier import (
+    ClassifierConfig,
+    ClassifierResponse,
+    Question,
+    validate_question_names,
+)
+from py_ai_toolkit.core.domain.errors import ClassifierAdapterError, WorkflowError
 from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
     EmbeddingResponse,
     LLMConfig,
-    SingleShotValidationConfig,
     ValidationConfig,
 )
 from py_ai_toolkit.core.hooks import (
+    AfterClassifyContext,
+    AfterEmbedBatchContext,
+    AfterEmbedContext,
+    AfterLLMCallContext,
+    AfterRenderContext,
+    BeforeClassifyContext,
+    BeforeLLMCallContext,
+    BeforeRenderContext,
     Hooks,
     _fire_hook,
-    BeforeRenderContext,
-    AfterRenderContext,
-    BeforeLLMCallContext,
-    AfterLLMCallContext,
-    AfterEmbedContext,
-    AfterEmbedBatchContext,
 )
+from py_ai_toolkit.core.ports import ClassifierPort
 from py_ai_toolkit.factories import (
+    create_classifier,
     create_llm_client,
     create_model_handler,
     create_prompt_formatter,
@@ -41,6 +51,7 @@ class PyAIToolkit:
         self,
         main_model_config: LLMConfig | None = None,
         alternative_models_configs: list[LLMConfig] | None = None,
+        classifier_config: ClassifierConfig | None = None,
     ):
         if main_model_config is None:
             main_model_config = LLMConfig()
@@ -62,12 +73,32 @@ class PyAIToolkit:
         self.prompt_formatter = create_prompt_formatter()
         self.model_handler = create_model_handler()
 
+        resolved_config = (
+            classifier_config if classifier_config is not None else ClassifierConfig()
+        )
+        classifier_api_key = resolved_config.api_key or os.getenv("CLASSIFIER_API_KEY")
+        classifier_model = (
+            resolved_config.model or os.getenv("CLASSIFIER_MODEL") or "jev-latest"
+        )
+        classifier_base_url = resolved_config.base_url or os.getenv(
+            "CLASSIFIER_BASE_URL"
+        )
+        self.classifier: ClassifierPort | None = None
+        if classifier_config is not None and not classifier_api_key:
+            raise ValueError(
+                "ClassifierConfig requires an api_key or CLASSIFIER_API_KEY."
+            )
+        if classifier_config is not None or classifier_api_key:
+            self.classifier = create_classifier(
+                classifier_api_key, classifier_model, classifier_base_url
+            )
+
     def inject_types(
         self,
-        model: Type[T],
+        model: type[T],
         fields: list[tuple[str, Any]],
         docstring: str | None = None,
-    ) -> Type[T]:
+    ) -> type[T]:
         """
         Injects field types into a response model.
 
@@ -84,7 +115,7 @@ class PyAIToolkit:
         return self.model_handler.inject_types(model, fields, docstring)
 
     def reduce_model_schema(
-        self, model: Type[T], include_description: bool = True
+        self, model: type[T], include_description: bool = True
     ) -> str:
         """
         Reduces a response model schema into version with less tokens. Helpful for reducing prompt noise.
@@ -103,7 +134,7 @@ class PyAIToolkit:
     ) -> list:
         try:
             is_path = os.path.exists(template)
-        except Exception:
+        except Exception:  # noqa: BLE001  any failure to probe the template means it is not a path
             is_path = False
 
         for key, value in kwargs.items():
@@ -148,7 +179,9 @@ class PyAIToolkit:
             {"role": "system", "content": final_prompt},
         ]
 
-    async def embed(self, text: str, *, hooks: Hooks | None = None) -> EmbeddingResponse:
+    async def embed(
+        self, text: str, *, hooks: Hooks | None = None
+    ) -> EmbeddingResponse:
         """
         Embeds text into a vector space.
         """
@@ -192,6 +225,67 @@ class PyAIToolkit:
             )
 
         return responses
+
+    async def classify(
+        self,
+        state: str | dict | list,
+        questions: Mapping[str, Question],
+        *,
+        hooks: Hooks | None = None,
+    ) -> ClassifierResponse:
+        """
+        Classifies a state against named questions using the configured classifier.
+
+        Args:
+            state: The text or JSON-like content to classify
+            questions: Question name to question definition
+            hooks (Hooks | None): Optional hooks to fire before/after the classifier call
+
+        Returns:
+            ClassifierResponse: The classifier's response, unchanged
+        """
+        if self.classifier is None:
+            raise ClassifierAdapterError(
+                "Classifier not configured: pass ClassifierConfig (or set "
+                "CLASSIFIER_API_KEY) and install `py-ai-toolkit[jev]`."
+            )
+        if not questions:
+            raise ValueError("questions must not be empty.")
+        validate_question_names(questions)
+
+        if hooks:
+            await _fire_hook(
+                hooks.before_classify,
+                BeforeClassifyContext(
+                    state=state,
+                    questions=questions,
+                    model=self.classifier._model,
+                ),
+            )
+
+        start = time.perf_counter()
+        response = await self.classifier.classify(state, questions)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        if hooks:
+            await _fire_hook(
+                hooks.after_classify,
+                AfterClassifyContext(
+                    response=response,
+                    model=self.classifier._model,
+                    elapsed_ms=elapsed_ms,
+                    usage=response.usage,
+                ),
+            )
+
+        return response
+
+    async def aclose(self) -> None:
+        """
+        Releases the classifier's resources, if a classifier is configured.
+        """
+        if self.classifier is not None:
+            await self.classifier.aclose()
 
     async def chat(
         self,
@@ -288,7 +382,7 @@ class PyAIToolkit:
 
     async def asend(
         self,
-        response_model: Type[T],
+        response_model: type[T],
         template: str | None = None,
         *,
         hooks: Hooks | None = None,
@@ -339,7 +433,7 @@ class PyAIToolkit:
             )
 
         if not isinstance(response.content, response_model):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004  public API raises ValueError; callers may catch it
                 f"Response content is not an instance of {response_model.__name__}"
             )
         return response
@@ -347,9 +441,9 @@ class PyAIToolkit:
     async def run_task(
         self,
         template: str,
-        response_model: Type[T],
+        response_model: type[T],
         kwargs: dict[str, Any],
-        config: ValidationConfig = SingleShotValidationConfig(),
+        config: ValidationConfig | None = None,
         echo: bool = False,
         *,
         hooks: Hooks | None = None,
@@ -360,7 +454,8 @@ class PyAIToolkit:
             template: The template to pass to the task node.
             response_model: The type of the task output.
             kwargs: The kwargs to pass to the task node.
-            config: The validation configurations for the tree
+            config: The validation configurations for the tree. Defaults to a
+                fresh SingleShotValidationConfig per call.
             echo: Whether to echo the output.
             hooks: Optional hooks to fire during execution.
 

@@ -7,7 +7,7 @@ Base class for building LLM-powered workflows using grafo DAGs.
 ```python
 BaseWorkflow(
     ai_toolkit: PyAIToolkit,
-    error_class: Type[Exception],
+    error_class: type[Exception],
     echo: bool = False
 )
 ```
@@ -15,7 +15,7 @@ BaseWorkflow(
 **Parameters:**
 
 - `ai_toolkit` (PyAIToolkit): Instance of PyAIToolkit for LLM operations
-- `error_class` (Type[Exception]): Exception class to raise on workflow errors
+- `error_class` (type[Exception]): Exception class to raise on workflow errors
 - `echo` (bool): Enable debug logging
 
 **Example:**
@@ -27,11 +27,7 @@ from py_ai_toolkit.core.domain.errors import WorkflowError
 
 ait = PyAIToolkit(main_model_config=LLMConfig())
 
-workflow = BaseWorkflow(
-    ai_toolkit=ait,
-    error_class=WorkflowError,
-    echo=True
-)
+workflow = BaseWorkflow(ai_toolkit=ait, error_class=WorkflowError, echo=True)
 ```
 
 ## Methods
@@ -43,16 +39,16 @@ Execute a single LLM task (text or structured).
 ```python
 async def task(
     template: str | None = None,
-    response_model: Type[S] | None = None,
+    response_model: type[S] | None = None,
     echo: bool = False,
     **kwargs: Any
-) -> Union[str, S]
+) -> str | S
 ```
 
 **Parameters:**
 
 - `template` (str | None): Prompt template (file path or inline string)
-- `response_model` (Type[S] | None): Optional Pydantic model for structured output
+- `response_model` (type[S] | None): Optional Pydantic model for structured output
 - `echo` (bool): Log output
 - `**kwargs`: Template variables
 
@@ -62,16 +58,11 @@ async def task(
 
 ```python
 # Text response
-text = await workflow.task(
-    template="Summarize: {{ article }}",
-    article=long_text
-)
+text = await workflow.task(template="Summarize: {{ article }}", article=long_text)
 
 # Structured response
 result = await workflow.task(
-    template="Extract entities: {{ text }}",
-    response_model=Entities,
-    text=document
+    template="Extract entities: {{ text }}", response_model=Entities, text=document
 )
 ```
 
@@ -84,9 +75,9 @@ Create an executable task tree with validation.
 ```python
 async def create_task_tree(
     template: str,
-    response_model: Type[S],
+    response_model: type[S],
     kwargs: dict[str, Any],
-    config: ValidationConfig = SingleShotValidationConfig(),
+    config: ValidationConfig | None = None,
     echo: bool = False
 ) -> TreeExecutor[S | V]
 ```
@@ -94,9 +85,9 @@ async def create_task_tree(
 **Parameters:**
 
 - `template` (str): Prompt template
-- `response_model` (Type[S]): Pydantic model for output
+- `response_model` (type[S]): Pydantic model for output
 - `kwargs` (dict[str, Any]): Template variables
-- `config` (ValidationConfig): Validation configuration
+- `config` (ValidationConfig | None): Validation configuration. Defaults to a fresh `SingleShotValidationConfig()` per call
 - `echo` (bool): Enable logging
 
 **Returns:** `TreeExecutor` ready to run
@@ -110,9 +101,7 @@ executor = await workflow.create_task_tree(
     template="Parse this: {{ data }}",
     response_model=ParsedData,
     kwargs=dict(data=raw_input),
-    config=ThresholdVotingValidationConfig(
-        issues=["Output is accurate"]
-    )
+    config=ThresholdVotingValidationConfig(issues=["Output is accurate"]),
 )
 
 results = await executor.run()
@@ -129,9 +118,9 @@ Create a standalone node containing a task tree subtree.
 async def build_task_node(
     uuid: str,
     template: str,
-    response_model: Type[S],
+    response_model: type[S],
     kwargs: dict[str, Any],
-    config: ValidationConfig = SingleShotValidationConfig()
+    config: ValidationConfig | None = None
 ) -> Node[S]
 ```
 
@@ -139,9 +128,9 @@ async def build_task_node(
 
 - `uuid` (str): Unique identifier for the node
 - `template` (str): Prompt template
-- `response_model` (Type[S]): Output model
+- `response_model` (type[S]): Output model
 - `kwargs` (dict[str, Any]): Template variables
-- `config` (ValidationConfig): Validation config
+- `config` (ValidationConfig | None): Validation config. Defaults to a fresh `SingleShotValidationConfig()` per call
 
 **Returns:** `Node[S]` that can be connected to other nodes
 
@@ -153,7 +142,7 @@ node = await workflow.build_task_node(
     template="Extract: {{ text }}",
     response_model=ExtractedData,
     kwargs=dict(text=input_text),
-    config=SingleShotValidationConfig(issues=["Complete extraction"])
+    config=SingleShotValidationConfig(issues=["Complete extraction"]),
 )
 
 # Connect to other nodes in larger workflow
@@ -196,7 +185,7 @@ Create a basic task node.
 def _create_task_node(
     template: str,
     uuid: str | None = None,
-    response_model: Type[S] | None = None,
+    response_model: type[S] | None = None,
     echo: bool = False,
     **kwargs: Any
 ) -> Node[Any]
