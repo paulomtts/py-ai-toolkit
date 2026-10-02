@@ -211,8 +211,10 @@ def test_adapters_package_does_not_import_sdk():
         [
             sys.executable,
             "-c",
-            ("import sys, py_ai_toolkit.adapters; "
-            "assert 'typesafe_sdk' not in sys.modules"),
+            (
+                "import sys, py_ai_toolkit.adapters; "
+                "assert 'typesafe_sdk' not in sys.modules"
+            ),
         ],
         cwd=REPO_ROOT,
         capture_output=True,

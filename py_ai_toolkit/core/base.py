@@ -269,7 +269,9 @@ class BaseWorkflow:
 
         ############################
         if result is False and (
-            isinstance(config, (ThresholdVotingValidationConfig, KAheadVotingValidationConfig))
+            isinstance(
+                config, (ThresholdVotingValidationConfig, KAheadVotingValidationConfig)
+            )
         ):
             pass  # TODO: consolidate failure reasonings here
         ############################
