@@ -45,15 +45,15 @@ toolkit = PyAIToolkit(main_model_config=LLMConfig(model="gpt-4o", api_key="...")
 
 ```python
 from py_ai_toolkit import (
-    PyAIToolkit,       # Main class
-    LLMConfig,         # Configuration model
-    CompletionResponse, # Response wrapper
-    BaseWorkflow,      # Base class for custom workflows
-    WorkflowError,     # Exception class for workflow errors
-    BaseIssue,         # Base model for validation issues
-    Node,              # grafo node (re-exported)
-    TreeExecutor,      # grafo executor (re-exported)
-    Chunk,             # grafo chunk (re-exported)
+    PyAIToolkit,  # Main class
+    LLMConfig,  # Configuration model
+    CompletionResponse,  # Response wrapper
+    BaseWorkflow,  # Base class for custom workflows
+    WorkflowError,  # Exception class for workflow errors
+    BaseIssue,  # Base model for validation issues
+    Node,  # grafo node (re-exported)
+    TreeExecutor,  # grafo executor (re-exported)
+    Chunk,  # grafo chunk (re-exported)
 )
 ```
 
@@ -64,7 +64,7 @@ from py_ai_toolkit.core.domain.schemas import (
     SingleShotValidationConfig,
     ThresholdVotingValidationConfig,
     KAheadVotingValidationConfig,
-    ValidationConfig,   # Union type alias
+    ValidationConfig,  # Union type alias
 )
 ```
 
@@ -107,16 +107,18 @@ print(response.content)  # str
 ```python
 from pydantic import BaseModel
 
+
 class Purchase(BaseModel):
     product: str
     quantity: int
+
 
 response = await toolkit.asend(
     response_model=Purchase,
     template="Extract purchase from: {{ message }}",
     message="I want 5 apples",
 )
-print(response.content.product)   # "apple"
+print(response.content.product)  # "apple"
 print(response.content.quantity)  # 5
 ```
 
@@ -141,8 +143,8 @@ async for chunk in toolkit.stream(
 
 ```python
 response: EmbeddingResponse = await toolkit.embed("some text")
-vector = response.embedding    # list[float]
-usage = response.usage         # EmbeddingUsage
+vector = response.embedding  # list[float]
+usage = response.usage  # EmbeddingUsage
 ```
 
 ---
@@ -174,7 +176,7 @@ result = await toolkit.run_task(
     ),
     echo=False,  # set True for debug logging
 )
-print(result.product)   # Direct instance, not wrapped in CompletionResponse
+print(result.product)  # Direct instance, not wrapped in CompletionResponse
 print(result.quantity)
 ```
 
@@ -326,6 +328,7 @@ executor = TreeExecutor(uuid="parallel", roots=[node_a, node_b, node_c])
 from py_ai_toolkit import PyAIToolkit, BaseWorkflow, Node, TreeExecutor, WorkflowError
 from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
 
+
 class PurchaseWorkflow(BaseWorkflow):
     async def run(self, message: str) -> Purchase:
         executor = await self.create_task_tree(
@@ -338,6 +341,7 @@ class PurchaseWorkflow(BaseWorkflow):
         )
         results = await executor.run()
         return results[0].output
+
 
 toolkit = PyAIToolkit()
 workflow = PurchaseWorkflow(ai_toolkit=toolkit, error_class=WorkflowError)

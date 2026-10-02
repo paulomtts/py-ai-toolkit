@@ -120,9 +120,9 @@ response = await toolkit.classify(
 )
 
 answer = response.choices["department"]
-print(answer.choice)         # str - the selected option name
+print(answer.choice)  # str - the selected option name
 print(answer.probabilities)  # dict[str, float] - one entry per option
-print(answer.confidence)     # float
+print(answer.confidence)  # float
 ```
 
 ### Score
@@ -143,10 +143,10 @@ response = await toolkit.classify(
 )
 
 answer = response.scores["urgency"]
-print(answer.score)          # float - the raw score from Jev, unchanged
+print(answer.score)  # float - the raw score from Jev, unchanged
 print(answer.probabilities)  # dict[int, float] - keyed by level
-print(answer.confidence)     # float
-print(answer.legend)         # dict[int, ...] - level -> the criterion you passed
+print(answer.confidence)  # float
+print(answer.legend)  # dict[int, ...] - level -> the criterion you passed
 ```
 
 Levels are `int` keys. Use `legend` to map a level back to its criterion instead of assuming a numbering base.
@@ -251,8 +251,12 @@ The SDK retries failed requests by default (2 retries within a 30 s budget). The
 from py_ai_toolkit import Hooks
 from py_ai_toolkit.core.hooks import AfterClassifyContext
 
+
 async def log_classify(ctx: AfterClassifyContext) -> None:
-    print(f"[{ctx.model}] {ctx.usage.input_tokens} input tokens in {ctx.elapsed_ms:.0f}ms")
+    print(
+        f"[{ctx.model}] {ctx.usage.input_tokens} input tokens in {ctx.elapsed_ms:.0f}ms"
+    )
+
 
 response = await toolkit.classify(
     state,

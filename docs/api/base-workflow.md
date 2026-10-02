@@ -27,11 +27,7 @@ from py_ai_toolkit.core.domain.errors import WorkflowError
 
 ait = PyAIToolkit(main_model_config=LLMConfig())
 
-workflow = BaseWorkflow(
-    ai_toolkit=ait,
-    error_class=WorkflowError,
-    echo=True
-)
+workflow = BaseWorkflow(ai_toolkit=ait, error_class=WorkflowError, echo=True)
 ```
 
 ## Methods
@@ -62,16 +58,11 @@ async def task(
 
 ```python
 # Text response
-text = await workflow.task(
-    template="Summarize: {{ article }}",
-    article=long_text
-)
+text = await workflow.task(template="Summarize: {{ article }}", article=long_text)
 
 # Structured response
 result = await workflow.task(
-    template="Extract entities: {{ text }}",
-    response_model=Entities,
-    text=document
+    template="Extract entities: {{ text }}", response_model=Entities, text=document
 )
 ```
 
@@ -110,9 +101,7 @@ executor = await workflow.create_task_tree(
     template="Parse this: {{ data }}",
     response_model=ParsedData,
     kwargs=dict(data=raw_input),
-    config=ThresholdVotingValidationConfig(
-        issues=["Output is accurate"]
-    )
+    config=ThresholdVotingValidationConfig(issues=["Output is accurate"]),
 )
 
 results = await executor.run()
@@ -153,7 +142,7 @@ node = await workflow.build_task_node(
     template="Extract: {{ text }}",
     response_model=ExtractedData,
     kwargs=dict(text=input_text),
-    config=SingleShotValidationConfig(issues=["Complete extraction"])
+    config=SingleShotValidationConfig(issues=["Complete extraction"]),
 )
 
 # Connect to other nodes in larger workflow

@@ -8,9 +8,11 @@ Hooks let you observe what happens inside the toolkit without changing its behav
 from py_ai_toolkit import PyAIToolkit, Hooks
 from py_ai_toolkit.core.hooks import AfterLLMCallContext
 
+
 async def log_usage(ctx: AfterLLMCallContext) -> None:
     tokens = ctx.response.completion.usage.total_tokens
     print(f"[{ctx.model}] {tokens} tokens in {ctx.elapsed_ms:.0f}ms")
+
 
 toolkit = PyAIToolkit(config)
 result = await toolkit.asend(
@@ -94,32 +96,32 @@ Each hook receives a frozen (immutable) context object with the data available a
 
 ```python
 async def on_before_render(ctx: BeforeRenderContext) -> None:
-    print(ctx.template)   # str | None - template path or inline string
-    print(ctx.kwargs)     # dict[str, Any] - template variables
+    print(ctx.template)  # str | None - template path or inline string
+    print(ctx.kwargs)  # dict[str, Any] - template variables
 ```
 
 ### AfterRenderContext
 
 ```python
 async def on_after_render(ctx: AfterRenderContext) -> None:
-    print(ctx.prompt)     # str - the fully rendered prompt
+    print(ctx.prompt)  # str - the fully rendered prompt
 ```
 
 ### BeforeLLMCallContext
 
 ```python
 async def on_before_llm(ctx: BeforeLLMCallContext) -> None:
-    print(ctx.messages)       # list[dict[str, str]] - messages sent to the API
-    print(ctx.model)          # str - model name
-    print(ctx.response_model) # Type | None - None for chat/stream
+    print(ctx.messages)  # list[dict[str, str]] - messages sent to the API
+    print(ctx.model)  # str - model name
+    print(ctx.response_model)  # Type | None - None for chat/stream
 ```
 
 ### AfterLLMCallContext
 
 ```python
 async def on_after_llm(ctx: AfterLLMCallContext) -> None:
-    print(ctx.response)    # CompletionResponse - the full response
-    print(ctx.model)       # str - model name
+    print(ctx.response)  # CompletionResponse - the full response
+    print(ctx.model)  # str - model name
     print(ctx.elapsed_ms)  # float - API call duration in milliseconds
 ```
 
@@ -135,7 +137,7 @@ async def on_before_validation(ctx: BeforeValidationContext) -> None:
 
 ```python
 async def on_after_validation(ctx: AfterValidationContext) -> None:
-    print(ctx.is_valid)         # bool - whether validation passed
+    print(ctx.is_valid)  # bool - whether validation passed
     print(ctx.failure_reasons)  # list[str] - reasons for failure (empty if valid)
 ```
 
@@ -144,27 +146,27 @@ async def on_after_validation(ctx: AfterValidationContext) -> None:
 ```python
 async def on_retry(ctx: OnRetryContext) -> None:
     print(ctx.current_retry)  # int - which retry this is (1-based)
-    print(ctx.max_retries)    # int - maximum retries configured
-    print(ctx.evaluations)    # str - feedback string passed to next attempt
+    print(ctx.max_retries)  # int - maximum retries configured
+    print(ctx.evaluations)  # str - feedback string passed to next attempt
 ```
 
 ### BeforeClassifyContext
 
 ```python
 async def on_before_classify(ctx: BeforeClassifyContext) -> None:
-    print(ctx.state)      # str | dict[str, Any] | list[Any] - the content being classified
+    print(ctx.state)  # str | dict[str, Any] | list[Any] - the content being classified
     print(ctx.questions)  # Mapping[str, Question] - question name to question
-    print(ctx.model)      # str - classifier model name
+    print(ctx.model)  # str - classifier model name
 ```
 
 ### AfterClassifyContext
 
 ```python
 async def on_after_classify(ctx: AfterClassifyContext) -> None:
-    print(ctx.response)    # ClassifierResponse - the full response
-    print(ctx.model)       # str - classifier model name
+    print(ctx.response)  # ClassifierResponse - the full response
+    print(ctx.model)  # str - classifier model name
     print(ctx.elapsed_ms)  # float - classifier call duration in milliseconds
-    print(ctx.usage)       # ClassifierUsage - input_tokens and output_tokens (int | None)
+    print(ctx.usage)  # ClassifierUsage - input_tokens and output_tokens (int | None)
 ```
 
 ## Example: Token Usage Tracker
@@ -175,11 +177,13 @@ from py_ai_toolkit.core.hooks import AfterLLMCallContext
 
 total_tokens = 0
 
+
 async def track_tokens(ctx: AfterLLMCallContext) -> None:
     global total_tokens
     usage = ctx.response.completion.usage
     total_tokens += usage.total_tokens
     print(f"Call used {usage.total_tokens} tokens ({ctx.elapsed_ms:.0f}ms)")
+
 
 hooks = Hooks(after_llm_call=track_tokens)
 
@@ -195,6 +199,7 @@ print(f"Total tokens used: {total_tokens}")
 ```python
 from py_ai_toolkit.core.hooks import OnRetryContext, AfterValidationContext
 
+
 async def on_validation(ctx: AfterValidationContext) -> None:
     status = "PASS" if ctx.is_valid else "FAIL"
     print(f"Validation: {status}")
@@ -202,8 +207,10 @@ async def on_validation(ctx: AfterValidationContext) -> None:
         for reason in ctx.failure_reasons:
             print(f"  - {reason}")
 
+
 async def on_retry(ctx: OnRetryContext) -> None:
     print(f"Retrying ({ctx.current_retry}/{ctx.max_retries})...")
+
 
 result = await toolkit.run_task(
     template="Extract: {{ text }}",

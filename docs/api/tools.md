@@ -30,14 +30,11 @@ from py_ai_toolkit import PyAIToolkit
 from py_ai_toolkit.core.domain.schemas import LLMConfig
 
 ait = PyAIToolkit(
-    main_model_config=LLMConfig(
-        model="gpt-4",
-        api_key="your-api-key"
-    ),
+    main_model_config=LLMConfig(model="gpt-4", api_key="your-api-key"),
     alternative_models_configs=[
         LLMConfig(model="gpt-4"),
-        LLMConfig(model="claude-3-sonnet")
-    ]
+        LLMConfig(model="claude-3-sonnet"),
+    ],
 )
 ```
 
@@ -65,8 +62,7 @@ async def chat(
 
 ```python
 response = await ait.chat(
-    template="Explain {{ topic }} in one sentence.",
-    topic="quantum computing"
+    template="Explain {{ topic }} in one sentence.", topic="quantum computing"
 )
 print(response.content)
 ```
@@ -100,10 +96,9 @@ class Summary(BaseModel):
     key_points: list[str]
     word_count: int
 
+
 response = await ait.asend(
-    response_model=Summary,
-    template="Summarize: {{ text }}",
-    text=long_article
+    response_model=Summary, template="Summarize: {{ text }}", text=long_article
 )
 print(response.content.key_points)
 ```
@@ -132,8 +127,7 @@ async def stream(
 
 ```python
 async for chunk in ait.stream(
-    template="Write a story about {{ topic }}",
-    topic="space exploration"
+    template="Write a story about {{ topic }}", topic="space exploration"
 ):
     print(chunk.content, end="", flush=True)
 ```
@@ -224,10 +218,15 @@ from py_ai_toolkit import ChoiceQuestion, NoulQuestion
 response = await ait.classify(
     state="I was charged twice for my March invoice.",
     questions={
-        "is_refund_request": NoulQuestion(instructions="Is the customer asking for money back?"),
+        "is_refund_request": NoulQuestion(
+            instructions="Is the customer asking for money back?"
+        ),
         "department": ChoiceQuestion(
             instructions="Which team should handle this?",
-            criteria={"billing": "Payments and invoices.", "none": "None of the above."},
+            criteria={
+                "billing": "Payments and invoices.",
+                "none": "None of the above.",
+            },
         ),
     },
 )
@@ -288,9 +287,7 @@ result = await ait.run_task(
     template="Extract data from: {{ input }}",
     response_model=ExtractedData,
     kwargs=dict(input=raw_data),
-    config=SingleShotValidationConfig(
-        issues=["Data is complete and accurate"]
-    )
+    config=SingleShotValidationConfig(issues=["Data is complete and accurate"]),
 )
 ```
 
@@ -321,16 +318,18 @@ def inject_types(
 ```python
 from typing import Literal
 
+
 class Product(BaseModel):
     name: str
     category: str
+
 
 categories = ["electronics", "clothing", "food"]
 
 ProductModel = ait.inject_types(
     Product,
     fields=[("category", Literal[tuple(categories)])],
-    docstring="Product with constrained categories"
+    docstring="Product with constrained categories",
 )
 ```
 

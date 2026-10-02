@@ -26,7 +26,7 @@ ait = PyAIToolkit(main_model_config=LLMConfig())
 workflow = BaseWorkflow(
     ai_toolkit=ait,
     error_class=WorkflowError,
-    echo=False  # Set True for debug logging
+    echo=False,  # Set True for debug logging
 )
 ```
 
@@ -36,16 +36,11 @@ Use the `task()` method for individual LLM calls within workflows:
 
 ```python
 # Text response
-result = await workflow.task(
-    template="Summarize: {{ text }}",
-    text=long_article
-)
+result = await workflow.task(template="Summarize: {{ text }}", text=long_article)
 
 # Structured response
 result = await workflow.task(
-    template="Extract entities from: {{ text }}",
-    response_model=Entities,
-    text=document
+    template="Extract entities from: {{ text }}", response_model=Entities, text=document
 )
 ```
 
@@ -62,7 +57,7 @@ executor = await workflow.create_task_tree(
     kwargs=dict(message="I want 5 apples"),
     config=SingleShotValidationConfig(
         issues=["The purchase matches the user's request"]
-    )
+    ),
 )
 
 results = await executor.run()
@@ -85,8 +80,8 @@ task_node = Node[Purchase](
     kwargs=dict(
         template="Extract purchase: {{ message }}",
         response_model=Purchase,
-        message="I want 3 bananas"
-    )
+        message="I want 3 bananas",
+    ),
 )
 
 # Create dependent node
@@ -95,8 +90,8 @@ summary_node = Node[str](
     coroutine=workflow.task,
     kwargs=dict(
         template="Summarize this purchase: {{ purchase }}",
-        purchase=task_node.output  # Uses output from task_node
-    )
+        purchase=task_node.output,  # Uses output from task_node
+    ),
 )
 
 # Connect nodes
@@ -157,9 +152,8 @@ executor = await workflow.create_task_tree(
     response_model=MyModel,
     kwargs={...},
     config=ThresholdVotingValidationConfig(
-        issues=["Output is accurate", "Format is correct"],
-        max_retries=3
-    )
+        issues=["Output is accurate", "Format is correct"], max_retries=3
+    ),
 )
 ```
 
@@ -179,9 +173,7 @@ class DataProcessingWorkflow(BaseWorkflow):
     async def run(self, data: str) -> ProcessedData:
         # Custom orchestration logic
         extract_node = self._create_task_node(
-            template="Extract data: {{ input }}",
-            response_model=RawData,
-            input=data
+            template="Extract data: {{ input }}", response_model=RawData, input=data
         )
 
         # ... build workflow graph

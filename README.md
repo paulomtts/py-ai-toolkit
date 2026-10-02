@@ -59,14 +59,18 @@ print(response.content)
 from py_ai_toolkit import PyAIToolkit
 from pydantic import BaseModel
 
+
 class Purchase(BaseModel):
     product: str
     quantity: int
 
+
 toolkit = PyAIToolkit()
 template = "./prompt.md"  # PROMPT: {{ message }}
-response = await toolkit.asend(response_model=Purchase, template=template, message="I want to buy 5 apples")
-print(response.content.product)   # "apple"
+response = await toolkit.asend(
+    response_model=Purchase, template=template, message="I want to buy 5 apples"
+)
+print(response.content.product)  # "apple"
 print(response.content.quantity)  # 5
 ```
 
@@ -76,16 +80,20 @@ from py_ai_toolkit import PyAIToolkit
 from pydantic import BaseModel
 from typing import Literal
 
+
 class Purchase(BaseModel):
     product: str
     quantity: int
 
+
 toolkit = PyAIToolkit()
 available_fruits = ["apple", "banana", "orange"]
-FruitModel = toolkit.inject_types(Purchase, [
-    ("product", Literal[tuple(available_fruits)])
-])
-response = await toolkit.asend(response_model=FruitModel, template="./prompt.md", message="I want to buy 5 apples")
+FruitModel = toolkit.inject_types(
+    Purchase, [("product", Literal[tuple(available_fruits)])]
+)
+response = await toolkit.asend(
+    response_model=FruitModel, template="./prompt.md", message="I want to buy 5 apples"
+)
 ```
 
 ### Using run_task with validation:
@@ -94,9 +102,11 @@ from py_ai_toolkit import PyAIToolkit, LLMConfig
 from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
 from pydantic import BaseModel
 
+
 class Purchase(BaseModel):
     product: str
     quantity: int
+
 
 toolkit = PyAIToolkit(main_model_config=LLMConfig())
 
@@ -112,7 +122,7 @@ result = await toolkit.run_task(
     ),
 )
 
-print(result.product)   # "apple"
+print(result.product)  # "apple"
 print(result.quantity)  # 5
 ```
 
@@ -123,15 +133,18 @@ from py_ai_toolkit.core.domain.schemas import SingleShotValidationConfig
 from pydantic import BaseModel
 from typing import Literal
 
+
 class Purchase(BaseModel):
     product: str
     quantity: int
 
+
 toolkit = PyAIToolkit()
 available_fruits = ["apple", "banana", "orange"]
-FruitModel = toolkit.inject_types(Purchase, [
-    ("product", Literal[tuple(available_fruits)])
-])
+FruitModel = toolkit.inject_types(
+    Purchase, [("product", Literal[tuple(available_fruits)])]
+)
+
 
 class PurchaseWorkflow(BaseWorkflow):
     async def run(self, message: str) -> Purchase:
@@ -145,6 +158,7 @@ class PurchaseWorkflow(BaseWorkflow):
         )
         results = await executor.run()
         return results[0].output
+
 
 workflow = PurchaseWorkflow(ai_toolkit=toolkit, error_class=ValueError)
 result = await workflow.run("I want to buy 5 apples")

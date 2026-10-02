@@ -40,7 +40,7 @@ ait = PyAIToolkit(
         model="gpt-4",
         api_key="your-api-key",
         base_url="https://api.openai.com/v1",  # optional
-        embedding_model="text-embedding-3-small"  # optional
+        embedding_model="text-embedding-3-small",  # optional
     )
 )
 ```
@@ -56,8 +56,7 @@ from py_ai_toolkit import LLMConfig
 ait = PyAIToolkit(main_model_config=LLMConfig())
 
 response = await ait.chat(
-    template="Explain what {{ topic }} means in one sentence.",
-    topic="machine learning"
+    template="Explain what {{ topic }} means in one sentence.", topic="machine learning"
 )
 
 print(response.content)  # Text response from the LLM
@@ -70,15 +69,17 @@ For structured outputs, define a Pydantic model:
 ```python
 from pydantic import BaseModel
 
+
 class Explanation(BaseModel):
     topic: str
     explanation: str
     complexity: int  # 1-10 scale
 
+
 response = await ait.asend(
     response_model=Explanation,
     template="Explain {{ topic }} and rate its complexity from 1-10.",
-    topic="quantum computing"
+    topic="quantum computing",
 )
 
 print(response.content.explanation)
@@ -100,9 +101,7 @@ Be concise but accurate.
 **Python code:**
 ```python
 response = await ait.chat(
-    template="./prompts/explain.md",
-    topic="neural networks",
-    audience="beginner"
+    template="./prompts/explain.md", topic="neural networks", audience="beginner"
 )
 ```
 
@@ -115,8 +114,8 @@ ait = PyAIToolkit(
     main_model_config=LLMConfig(model="gpt-4"),
     alternative_models_configs=[
         LLMConfig(model="gpt-4"),
-        LLMConfig(model="claude-3-sonnet")
-    ]
+        LLMConfig(model="claude-3-sonnet"),
+    ],
 )
 ```
 
