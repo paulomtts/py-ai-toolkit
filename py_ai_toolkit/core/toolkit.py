@@ -17,7 +17,6 @@ from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
     EmbeddingResponse,
     LLMConfig,
-    SingleShotValidationConfig,
     ValidationConfig,
 )
 from py_ai_toolkit.core.hooks import (
@@ -41,8 +40,6 @@ from py_ai_toolkit.factories import (
 )
 
 T = TypeVar("T", bound=BaseModel)
-
-_DEFAULT_VALIDATION_CONFIG = SingleShotValidationConfig()
 
 
 class PyAIToolkit:
@@ -446,7 +443,7 @@ class PyAIToolkit:
         template: str,
         response_model: type[T],
         kwargs: dict[str, Any],
-        config: ValidationConfig = _DEFAULT_VALIDATION_CONFIG,
+        config: ValidationConfig | None = None,
         echo: bool = False,
         *,
         hooks: Hooks | None = None,
@@ -457,7 +454,8 @@ class PyAIToolkit:
             template: The template to pass to the task node.
             response_model: The type of the task output.
             kwargs: The kwargs to pass to the task node.
-            config: The validation configurations for the tree
+            config: The validation configurations for the tree. Defaults to a
+                fresh SingleShotValidationConfig per call.
             echo: Whether to echo the output.
             hooks: Optional hooks to fire during execution.
 
