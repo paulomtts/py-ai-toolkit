@@ -87,6 +87,34 @@ def test_init_keeps_model():
     assert isinstance(adapter._client, typesafe_sdk.AsyncTypeSafeClient)
 
 
+def test_init_builds_client_with_only_key_model_and_base_url(monkeypatch):
+    calls = []
+
+    def fake_client(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(
+        "py_ai_toolkit.adapters.jev_adapter.AsyncTypeSafeClient", fake_client
+    )
+
+    JevAdapter(
+        api_key="test-key",
+        model="jev-2026-09",
+        base_url="https://example.invalid",
+    )
+    JevAdapter(api_key="other-key")
+
+    assert calls == [
+        {
+            "api_key": "test-key",
+            "model": "jev-2026-09",
+            "base_url": "https://example.invalid",
+        },
+        {"api_key": "other-key", "model": "jev-latest", "base_url": None},
+    ]
+
+
 @pytest.mark.asyncio
 async def test_answer_mapping():
     adapter = _adapter_returning(_sdk_response())
