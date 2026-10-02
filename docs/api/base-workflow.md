@@ -7,7 +7,7 @@ Base class for building LLM-powered workflows using grafo DAGs.
 ```python
 BaseWorkflow(
     ai_toolkit: PyAIToolkit,
-    error_class: Type[Exception],
+    error_class: type[Exception],
     echo: bool = False
 )
 ```
@@ -15,7 +15,7 @@ BaseWorkflow(
 **Parameters:**
 
 - `ai_toolkit` (PyAIToolkit): Instance of PyAIToolkit for LLM operations
-- `error_class` (Type[Exception]): Exception class to raise on workflow errors
+- `error_class` (type[Exception]): Exception class to raise on workflow errors
 - `echo` (bool): Enable debug logging
 
 **Example:**
@@ -39,16 +39,16 @@ Execute a single LLM task (text or structured).
 ```python
 async def task(
     template: str | None = None,
-    response_model: Type[S] | None = None,
+    response_model: type[S] | None = None,
     echo: bool = False,
     **kwargs: Any
-) -> Union[str, S]
+) -> str | S
 ```
 
 **Parameters:**
 
 - `template` (str | None): Prompt template (file path or inline string)
-- `response_model` (Type[S] | None): Optional Pydantic model for structured output
+- `response_model` (type[S] | None): Optional Pydantic model for structured output
 - `echo` (bool): Log output
 - `**kwargs`: Template variables
 
@@ -75,9 +75,9 @@ Create an executable task tree with validation.
 ```python
 async def create_task_tree(
     template: str,
-    response_model: Type[S],
+    response_model: type[S],
     kwargs: dict[str, Any],
-    config: ValidationConfig = SingleShotValidationConfig(),
+    config: ValidationConfig | None = None,
     echo: bool = False
 ) -> TreeExecutor[S | V]
 ```
@@ -85,9 +85,9 @@ async def create_task_tree(
 **Parameters:**
 
 - `template` (str): Prompt template
-- `response_model` (Type[S]): Pydantic model for output
+- `response_model` (type[S]): Pydantic model for output
 - `kwargs` (dict[str, Any]): Template variables
-- `config` (ValidationConfig): Validation configuration
+- `config` (ValidationConfig | None): Validation configuration. Defaults to a fresh `SingleShotValidationConfig()` per call
 - `echo` (bool): Enable logging
 
 **Returns:** `TreeExecutor` ready to run
@@ -118,9 +118,9 @@ Create a standalone node containing a task tree subtree.
 async def build_task_node(
     uuid: str,
     template: str,
-    response_model: Type[S],
+    response_model: type[S],
     kwargs: dict[str, Any],
-    config: ValidationConfig = SingleShotValidationConfig()
+    config: ValidationConfig | None = None
 ) -> Node[S]
 ```
 
@@ -128,9 +128,9 @@ async def build_task_node(
 
 - `uuid` (str): Unique identifier for the node
 - `template` (str): Prompt template
-- `response_model` (Type[S]): Output model
+- `response_model` (type[S]): Output model
 - `kwargs` (dict[str, Any]): Template variables
-- `config` (ValidationConfig): Validation config
+- `config` (ValidationConfig | None): Validation config. Defaults to a fresh `SingleShotValidationConfig()` per call
 
 **Returns:** `Node[S]` that can be connected to other nodes
 
@@ -185,7 +185,7 @@ Create a basic task node.
 def _create_task_node(
     template: str,
     uuid: str | None = None,
-    response_model: Type[S] | None = None,
+    response_model: type[S] | None = None,
     echo: bool = False,
     **kwargs: Any
 ) -> Node[Any]

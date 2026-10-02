@@ -75,7 +75,7 @@ Execute a structured task with typed response.
 
 ```python
 async def asend(
-    response_model: Type[T],
+    response_model: type[T],
     template: str | None = None,
     **kwargs: Any
 ) -> CompletionResponse[T]
@@ -83,7 +83,7 @@ async def asend(
 
 **Parameters:**
 
-- `response_model` (Type[T]): Pydantic model defining the response structure
+- `response_model` (type[T]): Pydantic model defining the response structure
 - `template` (str | None): Path to prompt template file or inline prompt string
 - `**kwargs`: Variables to inject into the template
 
@@ -261,9 +261,9 @@ Execute a validated task with automatic retries.
 ```python
 async def run_task(
     template: str,
-    response_model: Type[T],
+    response_model: type[T],
     kwargs: dict[str, Any],
-    config: ValidationConfig = SingleShotValidationConfig(),
+    config: ValidationConfig | None = None,
     echo: bool = False
 ) -> T
 ```
@@ -271,9 +271,9 @@ async def run_task(
 **Parameters:**
 
 - `template` (str): Prompt template
-- `response_model` (Type[T]): Pydantic model for output
+- `response_model` (type[T]): Pydantic model for output
 - `kwargs` (dict[str, Any]): Template variables
-- `config` (ValidationConfig): Validation configuration
+- `config` (ValidationConfig | None): Validation configuration. Defaults to a fresh `SingleShotValidationConfig()` per call
 - `echo` (bool): Enable debug logging
 
 **Returns:** Instance of `response_model` with validated output
@@ -299,15 +299,15 @@ Inject field types into a Pydantic model.
 
 ```python
 def inject_types(
-    model: Type[T],
+    model: type[T],
     fields: list[tuple[str, Any]],
     docstring: str | None = None
-) -> Type[T]
+) -> type[T]
 ```
 
 **Parameters:**
 
-- `model` (Type[T]): Base Pydantic model
+- `model` (type[T]): Base Pydantic model
 - `fields` (list[tuple[str, Any]]): List of (field_name, type) tuples to inject
 - `docstring` (str | None): Optional docstring for the new model
 
@@ -341,14 +341,14 @@ Reduce model schema to a compact string representation.
 
 ```python
 def reduce_model_schema(
-    model: Type[T],
+    model: type[T],
     include_description: bool = True
 ) -> str
 ```
 
 **Parameters:**
 
-- `model` (Type[T]): Pydantic model to reduce
+- `model` (type[T]): Pydantic model to reduce
 - `include_description` (bool): Whether to include field descriptions
 
 **Returns:** Compact schema string
