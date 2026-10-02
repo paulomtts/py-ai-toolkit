@@ -6,15 +6,22 @@ The main class for interacting with LLMs and managing response models.
 
 ```python
 PyAIToolkit(
-    main_model_config: LLMConfig,
-    alternative_models_configs: list[LLMConfig] | None = None
+    main_model_config: LLMConfig | None = None,
+    alternative_models_configs: list[LLMConfig] | None = None,
+    classifier_config: ClassifierConfig | None = None
 )
 ```
 
 **Parameters:**
 
-- `main_model_config` (LLMConfig): Primary LLM configuration
+- `main_model_config` (LLMConfig | None): Primary LLM configuration
 - `alternative_models_configs` (list[LLMConfig] | None): Optional list of alternative models for load balancing
+- `classifier_config` (ClassifierConfig | None): Optional Jev classifier settings. Unset fields fall back to `CLASSIFIER_API_KEY`, `CLASSIFIER_MODEL` (default `"jev-latest"`) and `CLASSIFIER_BASE_URL`, read here at construction. A classifier is built only if this is passed or `CLASSIFIER_API_KEY` is set; otherwise `classifier` is `None`. See the [Classifier guide](../guide/classifier.md).
+
+**Raises:**
+
+- `ValueError`: `classifier_config` was passed but neither it nor `CLASSIFIER_API_KEY` provides an API key
+- `ImportError`: a classifier would be built but the `jev` extra is not installed (`pip install 'py-ai-toolkit[jev]'`)
 
 **Example:**
 
@@ -183,6 +190,71 @@ print(responses[0].usage.total_tokens)  # Aggregated usage across all inputs
 
 ---
 
+### classify()
+
+Answer structured questions about a piece of content with the configured Jev classifier.
+
+```python
+async def classify(
+    state: str | dict | list,
+    questions: Mapping[str, Question],
+    *,
+    hooks: Hooks | None = None
+) -> ClassifierResponse
+```
+
+**Parameters:**
+
+- `state` (str | dict | list): The text or JSON-like content to classify
+- `questions` (Mapping[str, Question]): Question name to question (`NoulQuestion`, `ChoiceQuestion` or `ScoreQuestion`)
+- `hooks` (Hooks | None): Optional hooks (fires `before_classify` and `after_classify`)
+
+**Returns:** `ClassifierResponse` with one raw answer per question name, unchanged
+
+**Raises:**
+
+- `ClassifierAdapterError`: no classifier is configured, or the SDK/API call failed (the original exception is on `__cause__`)
+- `ValueError`: `questions` is empty (`questions must not be empty.`)
+
+**Example:**
+
+```python
+from py_ai_toolkit import ChoiceQuestion, NoulQuestion
+
+response = await ait.classify(
+    state="I was charged twice for my March invoice.",
+    questions={
+        "is_refund_request": NoulQuestion(instructions="Is the customer asking for money back?"),
+        "department": ChoiceQuestion(
+            instructions="Which team should handle this?",
+            criteria={"billing": "Payments and invoices.", "none": "None of the above."},
+        ),
+    },
+)
+print(response.nouls["is_refund_request"].noul)
+print(response.choices["department"].choice)
+```
+
+---
+
+### aclose()
+
+Release the classifier's resources. A no-op when no classifier is configured.
+
+```python
+async def aclose() -> None
+```
+
+**Returns:** `None`
+
+**Example:**
+
+```python
+await ait.aclose()
+```
+
+---
+
 ### run_task()
 
 Execute a validated task with automatic retries.
@@ -324,3 +396,155 @@ class CompletionResponse(BaseModel, Generic[T]):
 - `completion`: Raw OpenAI completion object
 - `content`: Text string or structured model instance
 - `response_model`: Property for type-safe access to structured content
+
+### ClassifierConfig
+
+Configuration for the Jev classifier.
+
+```python
+class ClassifierConfig(BaseModel):
+    api_key: str | None = None
+    model: str | None = None
+    base_url: str | None = None
+```
+
+Falls back to environment variables, field by field: `CLASSIFIER_API_KEY`, `CLASSIFIER_MODEL` (default `"jev-latest"`), `CLASSIFIER_BASE_URL`. The environment is read by `PyAIToolkit`, not by this class.
+
+### ClassifierResponse
+
+Response returned by `classify()`. Values are raw; nothing is normalized or derived.
+
+```python
+class ClassifierResponse(BaseModel):
+    model: str
+    answers: dict[str, Answer]
+    usage: ClassifierUsage
+
+    @property
+    def nouls(self) -> dict[str, NoulAnswer]: ...
+
+    @property
+    def choices(self) -> dict[str, ChoiceAnswer]: ...
+
+    @property
+    def scores(self) -> dict[str, ScoreAnswer]: ...
+```
+
+**Attributes:**
+
+- `model`: The classifier model that answered
+- `answers`: Question name to answer; empty answer names fail validation
+- `usage`: Token usage
+- `nouls`, `choices`, `scores`: The answers of each type, keyed by question name
+
+### ClassifierUsage
+
+```python
+class ClassifierUsage(BaseModel):
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+```
+
+### NoulQuestion
+
+A yes/no question.
+
+```python
+class NoulQuestion(BaseModel):
+    type: Literal["noul"] = "noul"
+    instructions: JSONContent | None = None
+    criteria: NoulCriteria | None = None
+```
+
+`JSONContent` is `str | dict[str, Any] | list[Any]`.
+
+### NoulCriteria
+
+What counts as true and false for a `NoulQuestion`. Not exported from the package root:
+
+```python
+from py_ai_toolkit.core.domain.classifier import NoulCriteria
+```
+
+```python
+class NoulCriteria(BaseModel):
+    true: JSONContent | None = None
+    false: JSONContent | None = None
+```
+
+### ChoiceQuestion
+
+A single-select question. It always picks one option and cannot abstain.
+
+```python
+class ChoiceQuestion(BaseModel):
+    type: Literal["choice"] = "choice"
+    instructions: JSONContent | None = None
+    criteria: dict[str, JSONContent | None]  # 1 to 255 entries
+```
+
+### ScoreQuestion
+
+A question that places the state on a scale.
+
+```python
+class ScoreQuestion(BaseModel):
+    type: Literal["score"] = "score"
+    instructions: JSONContent | None = None
+    criteria: list[JSONContent]  # 2 to 10 entries
+```
+
+### NoulAnswer
+
+```python
+class NoulAnswer(BaseModel):
+    type: Literal["noul"] = "noul"
+    noul: float
+```
+
+No confidence field: threshold `noul` directly.
+
+### ChoiceAnswer
+
+```python
+class ChoiceAnswer(BaseModel):
+    type: Literal["choice"] = "choice"
+    choice: str
+    probabilities: dict[str, float]
+    confidence: float
+```
+
+### ScoreAnswer
+
+```python
+class ScoreAnswer(BaseModel):
+    type: Literal["score"] = "score"
+    score: float
+    probabilities: dict[int, float]
+    confidence: float
+    legend: dict[int, JSONContent]
+```
+
+`probabilities` and `legend` are keyed by `int` level. `confidence` here is not comparable with `ChoiceAnswer.confidence`.
+
+### Question
+
+```python
+Question = Annotated[
+    NoulQuestion | ChoiceQuestion | ScoreQuestion, Field(discriminator="type")
+]
+```
+
+### Answer
+
+```python
+Answer = Annotated[NoulAnswer | ChoiceAnswer | ScoreAnswer, Field(discriminator="type")]
+```
+
+### ClassifierAdapterError
+
+```python
+class ClassifierAdapterError(Exception): ...
+```
+
+Raised by `classify()` when no classifier is configured and for every SDK or API failure (authentication, unprocessable entity, rate limit, internal server error, connection or timeout, malformed response, any other `TypeSafeError`). The original SDK exception is on `__cause__`. Import it with `from py_ai_toolkit import ClassifierAdapterError`.
