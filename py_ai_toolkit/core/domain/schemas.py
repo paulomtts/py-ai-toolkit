@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import BaseModel, field_validator
 
-S = TypeVar("T", bound=BaseModel)
+S = TypeVar("S", bound=BaseModel)
 
 
 class LLMConfig(BaseModel):
