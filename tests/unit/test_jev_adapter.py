@@ -153,6 +153,53 @@ async def test_answer_mapping():
 
 
 @pytest.mark.asyncio
+async def test_raw_values_pass_through_without_normalization():
+    # Off-distribution values: a rescale, clamp or max(p, 1-p) would change them.
+    response = SimpleNamespace(
+        model="jev-2026-09",
+        usage=SimpleNamespace(input_tokens=1, output_tokens=2),
+        nouls={
+            "low": SimpleNamespace(noul=0.13),
+            "over": SimpleNamespace(noul=1.7),
+        },
+        choices={
+            "tone": SimpleNamespace(
+                choice="angry",
+                probabilities={"calm": 0.05, "angry": 0.85},
+                confidence=0.33,
+            )
+        },
+        scores={
+            "urgency": SimpleNamespace(
+                score=0.6,
+                probabilities={0: 0.3, 1: 0.3, 2: 0.2},
+                confidence=0.2,
+                legend={0: "low", 1: "medium", 2: "high"},
+            )
+        },
+    )
+    adapter = _adapter_returning(response)
+
+    result = await adapter.classify(
+        STATE,
+        {
+            "low": NoulQuestion(),
+            "over": NoulQuestion(),
+            "tone": ChoiceQuestion(criteria={"calm": None, "angry": None}),
+            "urgency": ScoreQuestion(criteria=["low", "medium", "high"]),
+        },
+    )
+
+    assert result.nouls["low"].noul == 0.13
+    assert result.nouls["over"].noul == 1.7
+    assert result.choices["tone"].probabilities == {"calm": 0.05, "angry": 0.85}
+    assert result.choices["tone"].confidence == 0.33
+    assert result.scores["urgency"].score == 0.6
+    assert result.scores["urgency"].probabilities == {0: 0.3, 1: 0.3, 2: 0.2}
+    assert result.scores["urgency"].confidence == 0.2
+
+
+@pytest.mark.asyncio
 async def test_score_keys_coerced_to_int():
     response = SimpleNamespace(
         model="jev-2026-09",

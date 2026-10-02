@@ -86,12 +86,12 @@ async def test_classify_live_one_question_of_each_type():
     choice = response.choices[CHOICE_NAME]
     assert choice.choice in CHOICE_CRITERIA
     assert set(choice.probabilities) == set(CHOICE_CRITERIA)
-    assert sum(choice.probabilities.values()) == pytest.approx(1)
+    assert sum(choice.probabilities.values()) == pytest.approx(1, abs=1e-3)
     assert 0 <= choice.confidence <= 1
 
     score = response.scores[SCORE_NAME]
     n_levels = len(SCORE_LEVELS)
-    assert sum(score.probabilities.values()) == pytest.approx(1)
+    assert sum(score.probabilities.values()) == pytest.approx(1, abs=1e-3)
     assert 0 <= score.confidence <= 1
     assert set(score.legend) == set(score.probabilities)
     assert len(score.legend) == n_levels

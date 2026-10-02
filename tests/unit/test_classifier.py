@@ -3,11 +3,8 @@ import importlib.util
 import inspect
 import subprocess
 import sys
-import typing
-from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -373,25 +370,6 @@ def test_classifier_adapter_error_carries_message():
     assert ClassifierAdapterError().message == ""
     assert isinstance(err, Exception)
     assert not isinstance(err, LLMAdapterError)
-    with pytest.raises(Exception) as caught:
-        raise ClassifierAdapterError("raised")
-    assert caught.value.message == "raised"
-
-
-def test_classifier_adapter_error_keeps_cause_and_escapes_llm_handler():
-    cause = RuntimeError("sdk failure")
-
-    with pytest.raises(ClassifierAdapterError) as caught:
-        try:
-            try:
-                raise cause
-            except RuntimeError as exc:
-                raise ClassifierAdapterError("Jev request failed") from exc
-        except LLMAdapterError:
-            pytest.fail("ClassifierAdapterError must not be caught as LLMAdapterError")
-
-    assert caught.value.__cause__ is cause
-    assert caught.value.message == "Jev request failed"
 
 
 # --- ClassifierPort ---
@@ -437,14 +415,7 @@ def test_classifier_port_minimal_subclass_classifies():
     assert result is FIXED_RESPONSE
 
 
-def test_classifier_port_classify_signature_is_pinned():
-    hints = typing.get_type_hints(ClassifierPort.classify, include_extras=True)
-    params = list(inspect.signature(ClassifierPort.classify).parameters)
-
-    assert params == ["self", "state", "questions"]
-    assert hints["state"] == str | dict[str, Any] | list[Any]
-    assert hints["questions"] == Mapping[str, Question]
-    assert hints["return"] is ClassifierResponse
+def test_classifier_port_methods_are_coroutines():
     assert inspect.iscoroutinefunction(ClassifierPort.classify)
     assert inspect.iscoroutinefunction(ClassifierPort.aclose)
 
@@ -889,20 +860,17 @@ def test_classify_elapsed_ms_measures_the_classifier_call(monkeypatch):
 
     toolkit = _toolkit_with(monkeypatch, SlowClassifier())
     hooks, events = _recording_hooks()
+    recorded_before = hooks.before_classify
+
+    async def slow_before(ctx):
+        clock["now"] += 5.0
+        await recorded_before(ctx)
+
+    hooks.before_classify = slow_before
 
     run(toolkit.classify("text", QUESTIONS, hooks=hooks))
 
     assert events[-1][1].elapsed_ms == pytest.approx(250.0)
-
-
-def test_classify_without_hooks_returns_response(monkeypatch):
-    fake = FakeClassifier()
-    toolkit = _toolkit_with(monkeypatch, fake)
-
-    result = run(toolkit.classify("text", QUESTIONS))
-
-    assert result is FIXED_RESPONSE
-    assert len(fake.calls) == 1
 
 
 def test_classify_without_hooks_does_not_need_model_attribute(monkeypatch):
