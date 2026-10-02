@@ -32,7 +32,7 @@ Each field falls back to an environment variable:
 |---|---|---|
 | `api_key` | `CLASSIFIER_API_KEY` | none |
 | `model` | `CLASSIFIER_MODEL` | `"jev-latest"` |
-| `base_url` | `CLASSIFIER_BASE_URL` | the SDK's default endpoint |
+| `base_url` | `CLASSIFIER_BASE_URL` | the SDK's own resolution: `TYPESAFE_BASE_URL`, else `https://api.typesafe.ai` |
 
 The environment is read once, in `PyAIToolkit.__init__`. Resolution is field by field: an explicit config value beats its environment variable, and an unset field falls back to the environment.
 
