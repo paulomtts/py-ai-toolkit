@@ -32,7 +32,7 @@ async def test_run_task_no_validations():
             {{ message }}
         """.strip(),
         response_model=FruitPurchase,
-        kwargs=dict(message="I want to buy 5 apples."),
+        kwargs={"message": "I want to buy 5 apples."},
         echo=True,
     )
 
@@ -49,7 +49,7 @@ async def test_run_task_with_single_validations():
             {{ message }}
         """.strip(),
         response_model=FruitPurchase,
-        kwargs=dict(message="I want to buy 5 apples."),
+        kwargs={"message": "I want to buy 5 apples."},
         config=SingleShotValidationConfig(
             issues=["The identified purchase matches the user's request."],
         ),
@@ -69,7 +69,7 @@ async def test_run_task_with_threshold_validations():
             {{ message }}
         """.strip(),
         response_model=FruitPurchase,
-        kwargs=dict(message="I want to buy 5 apples."),
+        kwargs={"message": "I want to buy 5 apples."},
         config=ThresholdVotingValidationConfig(
             issues=["The identified purchase matches the user's request."],
         ),
@@ -89,7 +89,7 @@ async def test_run_task_with_kahead_validations():
             {{ message }}
         """.strip(),
         response_model=FruitPurchase,
-        kwargs=dict(message="I want to buy 5 apples."),
+        kwargs={"message": "I want to buy 5 apples."},
         config=KAheadVotingValidationConfig(
             issues=["The identified purchase matches the user's request."],
         ),

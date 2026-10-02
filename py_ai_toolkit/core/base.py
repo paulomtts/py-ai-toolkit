@@ -1,4 +1,4 @@
-from typing import Any, Type, TypeVar, Union
+from typing import Any, TypeVar
 from uuid import uuid4
 
 from grafo import Node, TreeExecutor
@@ -14,11 +14,11 @@ from py_ai_toolkit.core.domain.schemas import (
 )
 from py_ai_toolkit.core.executors import IssueTreeExecutor
 from py_ai_toolkit.core.hooks import (
-    Hooks,
-    _fire_hook,
-    BeforeValidationContext,
     AfterValidationContext,
+    BeforeValidationContext,
+    Hooks,
     OnRetryContext,
+    _fire_hook,
 )
 from py_ai_toolkit.core.toolkit import PyAIToolkit
 from py_ai_toolkit.core.utils import logger
@@ -36,7 +36,7 @@ class BaseWorkflow:
     def __init__(
         self,
         ai_toolkit: PyAIToolkit,
-        error_class: Type[Exception],
+        error_class: type[Exception],
         echo: bool = False,
         hooks: Hooks | None = None,
     ):
@@ -53,10 +53,10 @@ class BaseWorkflow:
     async def task(
         self,
         template: str | None = None,
-        response_model: Type[S] | None = None,
+        response_model: type[S] | None = None,
         echo: bool = False,
         **kwargs: Any,
-    ) -> Union[str, S]:
+    ) -> str | S:
         """
         Execute a task.
 
@@ -89,7 +89,7 @@ class BaseWorkflow:
         self,
         template: str,
         uuid: str | None = None,
-        response_model: Type[S] | None = None,
+        response_model: type[S] | None = None,
         echo: bool = False,
         **kwargs: Any,
     ) -> Node[Any]:
@@ -203,11 +203,11 @@ class BaseWorkflow:
         issue_node = Node[IssueModel](
             uuid=issue,
             coroutine=self.task,
-            kwargs=dict(
-                response_model=IssueModel,
-                input=task_node.kwargs,
-                output=task_node.output,
-                template="""
+            kwargs={
+                "response_model": IssueModel,
+                "input": task_node.kwargs,
+                "output": task_node.output,
+                "template": """
                     # Goal
                     Evaluate the output with regards to the issue. Rules:
                     - The issue is the only dimension that matters - everything else is irrelevant to whether the output is valid or not
@@ -220,8 +220,8 @@ class BaseWorkflow:
                     ## Output
                     {{ output }}
                 """,
-                echo=echo,
-            ),
+                "echo": echo,
+            },
         )
         return issue_node
 
@@ -267,8 +267,9 @@ class BaseWorkflow:
 
         ############################
         if result is False and (
-            isinstance(config, ThresholdVotingValidationConfig)
-            or isinstance(config, KAheadVotingValidationConfig)
+            isinstance(
+                config, (ThresholdVotingValidationConfig, KAheadVotingValidationConfig)
+            )
         ):
             pass  # TODO: consolidate failure reasonings here
         ############################
@@ -312,12 +313,12 @@ class BaseWorkflow:
             issue_node = Node[bool](
                 uuid=f"validation: {issue}",
                 coroutine=self._run_issue,
-                kwargs=dict(
-                    issue=issue,
-                    task_node=task_node,
-                    config=config,
-                    echo=echo,
-                ),
+                kwargs={
+                    "issue": issue,
+                    "task_node": task_node,
+                    "config": config,
+                    "echo": echo,
+                },
             )
             issue_nodes.append(issue_node)
         executor = TreeExecutor[bool](
@@ -344,9 +345,9 @@ class BaseWorkflow:
     async def create_task_tree(
         self,
         template: str,
-        response_model: Type[S],
+        response_model: type[S],
         kwargs: dict[str, Any],
-        config: ValidationConfig = SingleShotValidationConfig(),
+        config: ValidationConfig | None = None,
         echo: bool = False,
     ) -> TreeExecutor[S | V]:
         """
@@ -354,14 +355,17 @@ class BaseWorkflow:
 
         Args:
             template (str): The template to use for the task node
-            response_model (Type[S]): The response model to return the response as
+            response_model (type[S]): The response model to return the response as
             kwargs (dict[str, Any]): The kwargs to pass to the task node
-            config (ValidationConfig): Configuration for the validation
+            config (ValidationConfig | None): Configuration for the validation.
+                Defaults to a fresh SingleShotValidationConfig per call.
             echo (bool): Whether to echo the output
 
         Returns:
             TreeExecutor[S | V]: The task executor
         """
+        if config is None:
+            config = SingleShotValidationConfig()
         task_node: Node[S] = self._create_task_node(
             template=template,
             response_model=response_model,
@@ -372,19 +376,19 @@ class BaseWorkflow:
             validation_node = Node[bool](
                 uuid=f"{response_model.__name__}_validation_node",
                 coroutine=self._run_validations,
-                kwargs=dict(
-                    task_node=task_node,
-                    config=config,
-                    echo=echo,
-                ),
+                kwargs={
+                    "task_node": task_node,
+                    "config": config,
+                    "echo": echo,
+                },
             )
             validation_node.on_after_run = (
                 self._redirect,
-                dict(
-                    task_node=task_node,
-                    validation_node=validation_node,
-                    config=config,
-                ),
+                {
+                    "task_node": task_node,
+                    "validation_node": validation_node,
+                    "config": config,
+                },
             )
 
             await task_node.connect(validation_node)
@@ -400,9 +404,9 @@ class BaseWorkflow:
         self,
         uuid: str,
         template: str,
-        response_model: Type[S],
+        response_model: type[S],
         kwargs: dict[str, Any],
-        config: ValidationConfig = SingleShotValidationConfig(),
+        config: ValidationConfig | None = None,
     ) -> Node[S]:
         """
         Convenience method for creating a node that contains a subtree that runs a task and validates the output.

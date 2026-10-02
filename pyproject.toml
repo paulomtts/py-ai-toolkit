@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py-ai-toolkit"
-version = "0.7.0"
+version = "0.8.0"
 description = "A set of tools for easily interacting with LLMs."
 readme = "README.md"
 authors = [
@@ -39,7 +39,16 @@ dev = [
 docs = [
     "mkdocs",
 ]
+jev = [
+    "typesafe-sdk>=0.6.0",
+]
 
 [tool.setuptools.packages.find]
 include = ["py_ai_toolkit*"]
 exclude = ["site*", "tests*"]
+
+[tool.ruff.lint.per-file-ignores]
+# Imports after pytest.importorskip("typesafe_sdk") are intentional: the module
+# must be skipped before it imports the optional SDK.
+"tests/unit/test_jev_adapter.py" = ["E402"]
+"tests/live/test_jev_live.py" = ["E402"]

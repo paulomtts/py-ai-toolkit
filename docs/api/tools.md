@@ -6,15 +6,22 @@ The main class for interacting with LLMs and managing response models.
 
 ```python
 PyAIToolkit(
-    main_model_config: LLMConfig,
-    alternative_models_configs: list[LLMConfig] | None = None
+    main_model_config: LLMConfig | None = None,
+    alternative_models_configs: list[LLMConfig] | None = None,
+    classifier_config: ClassifierConfig | None = None
 )
 ```
 
 **Parameters:**
 
-- `main_model_config` (LLMConfig): Primary LLM configuration
+- `main_model_config` (LLMConfig | None): Primary LLM configuration
 - `alternative_models_configs` (list[LLMConfig] | None): Optional list of alternative models for load balancing
+- `classifier_config` (ClassifierConfig | None): Optional Jev classifier settings. Unset fields fall back to `CLASSIFIER_API_KEY`, `CLASSIFIER_MODEL` (default `"jev-latest"`) and `CLASSIFIER_BASE_URL`, read here at construction. A classifier is built only if this is passed or `CLASSIFIER_API_KEY` is set; otherwise `classifier` is `None`. See the [Classifier guide](../guide/classifier.md).
+
+**Raises:**
+
+- `ValueError`: `classifier_config` was passed but neither it nor `CLASSIFIER_API_KEY` provides an API key
+- `ImportError`: a classifier would be built but the `jev` extra is not installed (`pip install 'py-ai-toolkit[jev]'`)
 
 **Example:**
 
@@ -23,14 +30,11 @@ from py_ai_toolkit import PyAIToolkit
 from py_ai_toolkit.core.domain.schemas import LLMConfig
 
 ait = PyAIToolkit(
-    main_model_config=LLMConfig(
-        model="gpt-4",
-        api_key="your-api-key"
-    ),
+    main_model_config=LLMConfig(model="gpt-4", api_key="your-api-key"),
     alternative_models_configs=[
         LLMConfig(model="gpt-4"),
-        LLMConfig(model="claude-3-sonnet")
-    ]
+        LLMConfig(model="claude-3-sonnet"),
+    ],
 )
 ```
 
@@ -58,8 +62,7 @@ async def chat(
 
 ```python
 response = await ait.chat(
-    template="Explain {{ topic }} in one sentence.",
-    topic="quantum computing"
+    template="Explain {{ topic }} in one sentence.", topic="quantum computing"
 )
 print(response.content)
 ```
@@ -72,7 +75,7 @@ Execute a structured task with typed response.
 
 ```python
 async def asend(
-    response_model: Type[T],
+    response_model: type[T],
     template: str | None = None,
     **kwargs: Any
 ) -> CompletionResponse[T]
@@ -80,7 +83,7 @@ async def asend(
 
 **Parameters:**
 
-- `response_model` (Type[T]): Pydantic model defining the response structure
+- `response_model` (type[T]): Pydantic model defining the response structure
 - `template` (str | None): Path to prompt template file or inline prompt string
 - `**kwargs`: Variables to inject into the template
 
@@ -93,10 +96,9 @@ class Summary(BaseModel):
     key_points: list[str]
     word_count: int
 
+
 response = await ait.asend(
-    response_model=Summary,
-    template="Summarize: {{ text }}",
-    text=long_article
+    response_model=Summary, template="Summarize: {{ text }}", text=long_article
 )
 print(response.content.key_points)
 ```
@@ -125,8 +127,7 @@ async def stream(
 
 ```python
 async for chunk in ait.stream(
-    template="Write a story about {{ topic }}",
-    topic="space exploration"
+    template="Write a story about {{ topic }}", topic="space exploration"
 ):
     print(chunk.content, end="", flush=True)
 ```
@@ -183,6 +184,76 @@ print(responses[0].usage.total_tokens)  # Aggregated usage across all inputs
 
 ---
 
+### classify()
+
+Answer structured questions about a piece of content with the configured Jev classifier.
+
+```python
+async def classify(
+    state: str | dict | list,
+    questions: Mapping[str, Question],
+    *,
+    hooks: Hooks | None = None
+) -> ClassifierResponse
+```
+
+**Parameters:**
+
+- `state` (str | dict | list): The text or JSON-like content to classify
+- `questions` (Mapping[str, Question]): Question name to question (`NoulQuestion`, `ChoiceQuestion` or `ScoreQuestion`)
+- `hooks` (Hooks | None): Optional hooks (fires `before_classify` and `after_classify`)
+
+**Returns:** `ClassifierResponse` with one raw answer per question name, unchanged
+
+**Raises:**
+
+- `ClassifierAdapterError`: no classifier is configured, or the SDK/API call failed (the original exception is on `__cause__`)
+- `ValueError`: `questions` is empty (`questions must not be empty.`), or a question name is not a non-empty string
+
+**Example:**
+
+```python
+from py_ai_toolkit import ChoiceQuestion, NoulQuestion
+
+response = await ait.classify(
+    state="I was charged twice for my March invoice.",
+    questions={
+        "is_refund_request": NoulQuestion(
+            instructions="Is the customer asking for money back?"
+        ),
+        "department": ChoiceQuestion(
+            instructions="Which team should handle this?",
+            criteria={
+                "billing": "Payments and invoices.",
+                "none": "None of the above.",
+            },
+        ),
+    },
+)
+print(response.nouls["is_refund_request"].noul)
+print(response.choices["department"].choice)
+```
+
+---
+
+### aclose()
+
+Release the classifier's resources. A no-op when no classifier is configured.
+
+```python
+async def aclose() -> None
+```
+
+**Returns:** `None`
+
+**Example:**
+
+```python
+await ait.aclose()
+```
+
+---
+
 ### run_task()
 
 Execute a validated task with automatic retries.
@@ -190,9 +261,9 @@ Execute a validated task with automatic retries.
 ```python
 async def run_task(
     template: str,
-    response_model: Type[T],
+    response_model: type[T],
     kwargs: dict[str, Any],
-    config: ValidationConfig = SingleShotValidationConfig(),
+    config: ValidationConfig | None = None,
     echo: bool = False
 ) -> T
 ```
@@ -200,9 +271,9 @@ async def run_task(
 **Parameters:**
 
 - `template` (str): Prompt template
-- `response_model` (Type[T]): Pydantic model for output
+- `response_model` (type[T]): Pydantic model for output
 - `kwargs` (dict[str, Any]): Template variables
-- `config` (ValidationConfig): Validation configuration
+- `config` (ValidationConfig | None): Validation configuration. Defaults to a fresh `SingleShotValidationConfig()` per call
 - `echo` (bool): Enable debug logging
 
 **Returns:** Instance of `response_model` with validated output
@@ -216,9 +287,7 @@ result = await ait.run_task(
     template="Extract data from: {{ input }}",
     response_model=ExtractedData,
     kwargs=dict(input=raw_data),
-    config=SingleShotValidationConfig(
-        issues=["Data is complete and accurate"]
-    )
+    config=SingleShotValidationConfig(issues=["Data is complete and accurate"]),
 )
 ```
 
@@ -230,15 +299,15 @@ Inject field types into a Pydantic model.
 
 ```python
 def inject_types(
-    model: Type[T],
+    model: type[T],
     fields: list[tuple[str, Any]],
     docstring: str | None = None
-) -> Type[T]
+) -> type[T]
 ```
 
 **Parameters:**
 
-- `model` (Type[T]): Base Pydantic model
+- `model` (type[T]): Base Pydantic model
 - `fields` (list[tuple[str, Any]]): List of (field_name, type) tuples to inject
 - `docstring` (str | None): Optional docstring for the new model
 
@@ -249,16 +318,18 @@ def inject_types(
 ```python
 from typing import Literal
 
+
 class Product(BaseModel):
     name: str
     category: str
+
 
 categories = ["electronics", "clothing", "food"]
 
 ProductModel = ait.inject_types(
     Product,
     fields=[("category", Literal[tuple(categories)])],
-    docstring="Product with constrained categories"
+    docstring="Product with constrained categories",
 )
 ```
 
@@ -270,14 +341,14 @@ Reduce model schema to a compact string representation.
 
 ```python
 def reduce_model_schema(
-    model: Type[T],
+    model: type[T],
     include_description: bool = True
 ) -> str
 ```
 
 **Parameters:**
 
-- `model` (Type[T]): Pydantic model to reduce
+- `model` (type[T]): Pydantic model to reduce
 - `include_description` (bool): Whether to include field descriptions
 
 **Returns:** Compact schema string
@@ -324,3 +395,155 @@ class CompletionResponse(BaseModel, Generic[T]):
 - `completion`: Raw OpenAI completion object
 - `content`: Text string or structured model instance
 - `response_model`: Property for type-safe access to structured content
+
+### ClassifierConfig
+
+Configuration for the Jev classifier.
+
+```python
+class ClassifierConfig(BaseModel):
+    api_key: str | None = None
+    model: str | None = None
+    base_url: str | None = None
+```
+
+Falls back to environment variables, field by field: `CLASSIFIER_API_KEY`, `CLASSIFIER_MODEL` (default `"jev-latest"`), `CLASSIFIER_BASE_URL`. The environment is read by `PyAIToolkit`, not by this class.
+
+### ClassifierResponse
+
+Response returned by `classify()`. Values are raw; nothing is normalized or derived.
+
+```python
+class ClassifierResponse(BaseModel):
+    model: str
+    answers: dict[str, Answer]
+    usage: ClassifierUsage
+
+    @property
+    def nouls(self) -> dict[str, NoulAnswer]: ...
+
+    @property
+    def choices(self) -> dict[str, ChoiceAnswer]: ...
+
+    @property
+    def scores(self) -> dict[str, ScoreAnswer]: ...
+```
+
+**Attributes:**
+
+- `model`: The classifier model that answered
+- `answers`: Question name to answer; empty answer names fail validation
+- `usage`: Token usage
+- `nouls`, `choices`, `scores`: The answers of each type, keyed by question name
+
+### ClassifierUsage
+
+```python
+class ClassifierUsage(BaseModel):
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+```
+
+### NoulQuestion
+
+A yes/no question.
+
+```python
+class NoulQuestion(BaseModel):
+    type: Literal["noul"] = "noul"
+    instructions: JSONContent | None = None
+    criteria: NoulCriteria | None = None
+```
+
+`JSONContent` is `str | dict[str, Any] | list[Any]`.
+
+### NoulCriteria
+
+What counts as true and false for a `NoulQuestion`. Not exported from the package root:
+
+```python
+from py_ai_toolkit.core.domain.classifier import NoulCriteria
+```
+
+```python
+class NoulCriteria(BaseModel):
+    true: JSONContent | None = None
+    false: JSONContent | None = None
+```
+
+### ChoiceQuestion
+
+A single-select question. It always picks one option and cannot abstain.
+
+```python
+class ChoiceQuestion(BaseModel):
+    type: Literal["choice"] = "choice"
+    instructions: JSONContent | None = None
+    criteria: dict[str, JSONContent | None]  # 1 to 255 entries
+```
+
+### ScoreQuestion
+
+A question that places the state on a scale.
+
+```python
+class ScoreQuestion(BaseModel):
+    type: Literal["score"] = "score"
+    instructions: JSONContent | None = None
+    criteria: list[JSONContent]  # 2 to 10 entries
+```
+
+### NoulAnswer
+
+```python
+class NoulAnswer(BaseModel):
+    type: Literal["noul"] = "noul"
+    noul: float
+```
+
+No confidence field: threshold `noul` directly.
+
+### ChoiceAnswer
+
+```python
+class ChoiceAnswer(BaseModel):
+    type: Literal["choice"] = "choice"
+    choice: str
+    probabilities: dict[str, float]
+    confidence: float
+```
+
+### ScoreAnswer
+
+```python
+class ScoreAnswer(BaseModel):
+    type: Literal["score"] = "score"
+    score: float
+    probabilities: dict[int, float]
+    confidence: float
+    legend: dict[int, JSONContent]
+```
+
+`probabilities` and `legend` are keyed by `int` level. `confidence` here is not comparable with `ChoiceAnswer.confidence`.
+
+### Question
+
+```python
+Question = Annotated[
+    NoulQuestion | ChoiceQuestion | ScoreQuestion, Field(discriminator="type")
+]
+```
+
+### Answer
+
+```python
+Answer = Annotated[NoulAnswer | ChoiceAnswer | ScoreAnswer, Field(discriminator="type")]
+```
+
+### ClassifierAdapterError
+
+```python
+class ClassifierAdapterError(Exception): ...
+```
+
+Raised by `classify()` when no classifier is configured and for every SDK or API failure (authentication, unprocessable entity, rate limit, internal server error, connection or timeout, malformed response, any other `TypeSafeError`). The original SDK exception is on `__cause__`. Import it with `from py_ai_toolkit import ClassifierAdapterError`.

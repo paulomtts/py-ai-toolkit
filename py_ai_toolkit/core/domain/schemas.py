@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import BaseModel, field_validator
 
-S = TypeVar("T", bound=BaseModel)
+S = TypeVar("S", bound=BaseModel)
 
 
 class LLMConfig(BaseModel):
@@ -32,8 +32,8 @@ class CompletionResponse(BaseModel, Generic[S]):
         """
         Returns the instance of the response model of the completion response.
         """
-        if isinstance(self.content, str) or isinstance(self.content, list):
-            raise ValueError("Content is not structured.")
+        if isinstance(self.content, (str, list)):
+            raise ValueError("Content is not structured.")  # noqa: TRY004  public API raises ValueError; callers may catch it
         return self.content
 
 

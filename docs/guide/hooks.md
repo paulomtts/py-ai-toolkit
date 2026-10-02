@@ -8,9 +8,11 @@ Hooks let you observe what happens inside the toolkit without changing its behav
 from py_ai_toolkit import PyAIToolkit, Hooks
 from py_ai_toolkit.core.hooks import AfterLLMCallContext
 
+
 async def log_usage(ctx: AfterLLMCallContext) -> None:
     tokens = ctx.response.completion.usage.total_tokens
     print(f"[{ctx.model}] {tokens} tokens in {ctx.elapsed_ms:.0f}ms")
+
 
 toolkit = PyAIToolkit(config)
 result = await toolkit.asend(
@@ -25,7 +27,7 @@ Hooks are passed directly to the method you're calling. Every hook is an async f
 
 ## Available Hooks
 
-The toolkit fires hooks at seven points in the pipeline:
+The toolkit fires hooks at eleven points in the pipeline:
 
 | Hook | Fires when | Context type |
 |---|---|---|
@@ -33,22 +35,27 @@ The toolkit fires hooks at seven points in the pipeline:
 | `after_render` | After template rendering | `AfterRenderContext` |
 | `before_llm_call` | Before the LLM API call | `BeforeLLMCallContext` |
 | `after_llm_call` | After the LLM response | `AfterLLMCallContext` |
+| `after_embed` | After an `embed()` response | `AfterEmbedContext` |
+| `after_embed_batch` | After an `embed_batch()` response | `AfterEmbedBatchContext` |
 | `before_validation` | Before a validation round | `BeforeValidationContext` |
 | `after_validation` | After a validation round | `AfterValidationContext` |
 | `on_retry` | When a retry is triggered | `OnRetryContext` |
+| `before_classify` | Before the classifier call | `BeforeClassifyContext` |
+| `after_classify` | After a successful classifier response | `AfterClassifyContext` |
 
 ## Which Methods Support Which Hooks
 
-| Method | Render hooks | LLM hooks | Embed hooks | Validation/retry hooks |
-|---|---|---|---|---|
-| `chat()` | Yes | Yes | -- | -- |
-| `stream()` | Yes | Yes | -- | -- |
-| `asend()` | Yes | Yes | -- | -- |
-| `run_task()` | Yes | Yes | -- | Yes |
-| `embed()` | -- | -- | `after_embed` | -- |
-| `embed_batch()` | -- | -- | `after_embed_batch` | -- |
+| Method | Render hooks | LLM hooks | Embed hooks | Validation/retry hooks | Classify hooks |
+|---|---|---|---|---|---|
+| `chat()` | Yes | Yes | -- | -- | -- |
+| `stream()` | Yes | Yes | -- | -- | -- |
+| `asend()` | Yes | Yes | -- | -- | -- |
+| `run_task()` | Yes | Yes | -- | Yes | -- |
+| `embed()` | -- | -- | `after_embed` | -- | -- |
+| `embed_batch()` | -- | -- | `after_embed_batch` | -- | -- |
+| `classify()` | -- | -- | -- | -- | `before_classify`, `after_classify` |
 
-Validation and retry hooks only fire in `run_task()` because that's where the validation loop lives.
+Validation and retry hooks only fire in `run_task()` because that's where the validation loop lives. Classify hooks only fire in `classify()`; see the [Classifier guide](classifier.md).
 
 ## The Hooks Container
 
@@ -67,6 +74,8 @@ hooks = Hooks(
     before_validation=my_before_val,
     after_validation=my_after_val,
     on_retry=my_on_retry,
+    before_classify=my_before_classify,
+    after_classify=my_after_classify,
 )
 ```
 
@@ -76,6 +85,7 @@ Pass it to any supported method:
 await toolkit.chat(template="Hello", hooks=hooks)
 await toolkit.asend(response_model=MyModel, template="...", hooks=hooks)
 await toolkit.run_task(template="...", response_model=MyModel, kwargs={}, hooks=hooks)
+await toolkit.classify(state="...", questions=questions, hooks=hooks)
 ```
 
 ## Context Objects
@@ -86,32 +96,32 @@ Each hook receives a frozen (immutable) context object with the data available a
 
 ```python
 async def on_before_render(ctx: BeforeRenderContext) -> None:
-    print(ctx.template)   # str | None - template path or inline string
-    print(ctx.kwargs)     # dict[str, Any] - template variables
+    print(ctx.template)  # str | None - template path or inline string
+    print(ctx.kwargs)  # dict[str, Any] - template variables
 ```
 
 ### AfterRenderContext
 
 ```python
 async def on_after_render(ctx: AfterRenderContext) -> None:
-    print(ctx.prompt)     # str - the fully rendered prompt
+    print(ctx.prompt)  # str - the fully rendered prompt
 ```
 
 ### BeforeLLMCallContext
 
 ```python
 async def on_before_llm(ctx: BeforeLLMCallContext) -> None:
-    print(ctx.messages)       # list[dict[str, str]] - messages sent to the API
-    print(ctx.model)          # str - model name
-    print(ctx.response_model) # Type | None - None for chat/stream
+    print(ctx.messages)  # list[dict[str, str]] - messages sent to the API
+    print(ctx.model)  # str - model name
+    print(ctx.response_model)  # Type | None - None for chat/stream
 ```
 
 ### AfterLLMCallContext
 
 ```python
 async def on_after_llm(ctx: AfterLLMCallContext) -> None:
-    print(ctx.response)    # CompletionResponse - the full response
-    print(ctx.model)       # str - model name
+    print(ctx.response)  # CompletionResponse - the full response
+    print(ctx.model)  # str - model name
     print(ctx.elapsed_ms)  # float - API call duration in milliseconds
 ```
 
@@ -127,7 +137,7 @@ async def on_before_validation(ctx: BeforeValidationContext) -> None:
 
 ```python
 async def on_after_validation(ctx: AfterValidationContext) -> None:
-    print(ctx.is_valid)         # bool - whether validation passed
+    print(ctx.is_valid)  # bool - whether validation passed
     print(ctx.failure_reasons)  # list[str] - reasons for failure (empty if valid)
 ```
 
@@ -136,8 +146,27 @@ async def on_after_validation(ctx: AfterValidationContext) -> None:
 ```python
 async def on_retry(ctx: OnRetryContext) -> None:
     print(ctx.current_retry)  # int - which retry this is (1-based)
-    print(ctx.max_retries)    # int - maximum retries configured
-    print(ctx.evaluations)    # str - feedback string passed to next attempt
+    print(ctx.max_retries)  # int - maximum retries configured
+    print(ctx.evaluations)  # str - feedback string passed to next attempt
+```
+
+### BeforeClassifyContext
+
+```python
+async def on_before_classify(ctx: BeforeClassifyContext) -> None:
+    print(ctx.state)  # str | dict[str, Any] | list[Any] - the content being classified
+    print(ctx.questions)  # Mapping[str, Question] - question name to question
+    print(ctx.model)  # str - classifier model name
+```
+
+### AfterClassifyContext
+
+```python
+async def on_after_classify(ctx: AfterClassifyContext) -> None:
+    print(ctx.response)  # ClassifierResponse - the full response
+    print(ctx.model)  # str - classifier model name
+    print(ctx.elapsed_ms)  # float - classifier call duration in milliseconds
+    print(ctx.usage)  # ClassifierUsage - input_tokens and output_tokens (int | None)
 ```
 
 ## Example: Token Usage Tracker
@@ -148,11 +177,13 @@ from py_ai_toolkit.core.hooks import AfterLLMCallContext
 
 total_tokens = 0
 
+
 async def track_tokens(ctx: AfterLLMCallContext) -> None:
     global total_tokens
     usage = ctx.response.completion.usage
     total_tokens += usage.total_tokens
     print(f"Call used {usage.total_tokens} tokens ({ctx.elapsed_ms:.0f}ms)")
+
 
 hooks = Hooks(after_llm_call=track_tokens)
 
@@ -168,6 +199,7 @@ print(f"Total tokens used: {total_tokens}")
 ```python
 from py_ai_toolkit.core.hooks import OnRetryContext, AfterValidationContext
 
+
 async def on_validation(ctx: AfterValidationContext) -> None:
     status = "PASS" if ctx.is_valid else "FAIL"
     print(f"Validation: {status}")
@@ -175,8 +207,10 @@ async def on_validation(ctx: AfterValidationContext) -> None:
         for reason in ctx.failure_reasons:
             print(f"  - {reason}")
 
+
 async def on_retry(ctx: OnRetryContext) -> None:
     print(f"Retrying ({ctx.current_retry}/{ctx.max_retries})...")
+
 
 result = await toolkit.run_task(
     template="Extract: {{ text }}",
@@ -197,6 +231,9 @@ result = await toolkit.run_task(
 - If a hook raises an exception, it **propagates to the caller**. Keep your hooks simple and handle errors within them if needed.
 - `elapsed_ms` in `AfterLLMCallContext` measures **API latency only**, not template rendering or validation time.
 - For `stream()`, the `after_llm_call` hook fires after the stream completes and receives the last chunk as the response.
+- `before_classify` fires only after `classify()`'s guards pass: it does not fire when no classifier is configured, when `questions` is empty, or when a question name is empty or not a string.
+- `after_classify` fires on success only. If the classifier call raises, it does not fire.
+- `elapsed_ms` in `AfterClassifyContext` measures the classifier call only.
 
 ## All Imports
 
@@ -210,5 +247,7 @@ from py_ai_toolkit.core.hooks import (
     BeforeValidationContext,
     AfterValidationContext,
     OnRetryContext,
+    BeforeClassifyContext,
+    AfterClassifyContext,
 )
 ```

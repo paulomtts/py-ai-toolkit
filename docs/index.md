@@ -31,10 +31,11 @@ class Purchase(BaseModel):
     product: str
     quantity: int
 
+
 response = await ait.asend(
     response_model=Purchase,
     template="Extract purchase from: {{ message }}",
-    message="I want 5 apples"
+    message="I want 5 apples",
 )
 ```
 
@@ -46,7 +47,7 @@ result = await ait.run_task(
     kwargs=dict(message="I want 5 apples"),
     config=SingleShotValidationConfig(
         issues=["The purchase matches the user's request"]
-    )
+    ),
 )
 ```
 
@@ -54,10 +55,7 @@ result = await ait.run_task(
 ```python
 workflow = BaseWorkflow(ai_toolkit=ait, error_class=WorkflowError)
 task_tree = await workflow.create_task_tree(
-    template="...",
-    response_model=MyModel,
-    kwargs={...},
-    config=ValidationConfig()
+    template="...", response_model=MyModel, kwargs={...}, config=ValidationConfig()
 )
 ```
 

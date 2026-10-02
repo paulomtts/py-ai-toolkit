@@ -13,3 +13,4 @@ docs/superpowers/
 # Environment variables
 .env
 *.code-workspace
+.brd

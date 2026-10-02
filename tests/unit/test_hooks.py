@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields
 from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
@@ -7,14 +7,22 @@ from openai.types.chat import ChatCompletion
 from pydantic import BaseModel as PydanticBaseModel
 
 from py_ai_toolkit.adapters import Jinja2Adapter
+from py_ai_toolkit.core.domain.classifier import (
+    ClassifierResponse,
+    ClassifierUsage,
+    NoulAnswer,
+    NoulQuestion,
+)
 from py_ai_toolkit.core.domain.schemas import (
     CompletionResponse,
     SingleShotValidationConfig,
 )
 from py_ai_toolkit.core.hooks import (
+    AfterClassifyContext,
     AfterLLMCallContext,
     AfterRenderContext,
     AfterValidationContext,
+    BeforeClassifyContext,
     BeforeLLMCallContext,
     BeforeRenderContext,
     BeforeValidationContext,
@@ -78,6 +86,43 @@ def test_on_retry_context_is_frozen():
         ctx.current_retry = 2
 
 
+def _classifier_response(usage: ClassifierUsage) -> ClassifierResponse:
+    return ClassifierResponse(
+        model="jev-1",
+        answers={"q": NoulAnswer(noul=0.5)},
+        usage=usage,
+    )
+
+
+def test_before_classify_context_is_frozen():
+    ctx = BeforeClassifyContext(
+        state="some text",
+        questions={"q": NoulQuestion()},
+        model="jev-1",
+    )
+    for name, value in (("state", "other"), ("questions", {}), ("model", "other")):
+        with pytest.raises(FrozenInstanceError):
+            setattr(ctx, name, value)
+
+
+def test_after_classify_context_is_frozen():
+    usage = ClassifierUsage(input_tokens=12, output_tokens=3)
+    ctx = AfterClassifyContext(
+        response=_classifier_response(usage),
+        model="jev-1",
+        elapsed_ms=42.0,
+        usage=usage,
+    )
+    for name, value in (
+        ("response", None),
+        ("model", "other"),
+        ("elapsed_ms", 0.0),
+        ("usage", ClassifierUsage()),
+    ):
+        with pytest.raises(FrozenInstanceError):
+            setattr(ctx, name, value)
+
+
 def test_hooks_defaults_to_none():
     hooks = Hooks()
     assert hooks.before_render is None
@@ -97,6 +142,46 @@ def test_hooks_accepts_callbacks():
     assert hooks.before_render is my_hook
     assert hooks.after_llm_call is my_hook
     assert hooks.after_render is None
+
+
+def test_hooks_classify_fields_default_to_none():
+    hooks = Hooks()
+    assert hooks.before_classify is None
+    assert hooks.after_classify is None
+
+
+def test_hooks_existing_construction_unaffected():
+    async def first(ctx):
+        pass
+
+    async def second(ctx):
+        pass
+
+    keyword = Hooks(before_render=first, after_llm_call=second)
+    assert keyword.before_render is first
+    assert keyword.after_llm_call is second
+    assert keyword.before_classify is None
+    assert keyword.after_classify is None
+
+    positional = Hooks(first, second)
+    assert positional.before_render is first
+    assert positional.after_render is second
+    assert positional.before_classify is None
+    assert positional.after_classify is None
+
+    assert [f.name for f in fields(Hooks)] == [
+        "before_render",
+        "after_render",
+        "before_llm_call",
+        "after_llm_call",
+        "after_embed",
+        "after_embed_batch",
+        "before_validation",
+        "after_validation",
+        "on_retry",
+        "before_classify",
+        "after_classify",
+    ]
 
 
 def test_fire_hook_calls_callback():
@@ -328,8 +413,8 @@ async def test_redirect_fires_on_retry_hook():
 
 
 def test_after_embed_context_is_frozen():
-    from py_ai_toolkit.core.hooks import AfterEmbedContext
     from py_ai_toolkit.core.domain.schemas import EmbeddingUsage
+    from py_ai_toolkit.core.hooks import AfterEmbedContext
 
     usage = EmbeddingUsage(prompt_tokens=10, total_tokens=10)
     ctx = AfterEmbedContext(
@@ -359,8 +444,8 @@ def test_hooks_has_after_embed():
 
 @pytest.mark.asyncio
 async def test_embed_fires_after_embed_hook():
-    from py_ai_toolkit.core.hooks import AfterEmbedContext
     from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
+    from py_ai_toolkit.core.hooks import AfterEmbedContext
 
     ait, _ = _new_toolkit_with_llm()
 
@@ -420,8 +505,8 @@ def test_hooks_exported_from_package():
 
 
 def test_after_embed_batch_context_is_frozen():
-    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
     from py_ai_toolkit.core.domain.schemas import EmbeddingUsage
+    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
 
     usage = EmbeddingUsage(prompt_tokens=20, total_tokens=20)
     ctx = AfterEmbedBatchContext(
@@ -482,8 +567,8 @@ async def test_embed_batch_empty_list_returns_empty():
 
 @pytest.mark.asyncio
 async def test_embed_batch_fires_after_embed_batch_hook():
-    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
     from py_ai_toolkit.core.domain.schemas import EmbeddingResponse, EmbeddingUsage
+    from py_ai_toolkit.core.hooks import AfterEmbedBatchContext
 
     ait, _ = _new_toolkit_with_llm()
 

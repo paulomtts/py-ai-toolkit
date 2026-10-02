@@ -13,10 +13,10 @@ result = await ait.run_task(
     kwargs=dict(message="I want 5 apples"),
     config=SingleShotValidationConfig(
         issues=["The purchase matches the user's request"]
-    )
+    ),
 )
 
-print(result.product)   # Direct access to validated output
+print(result.product)  # Direct access to validated output
 print(result.quantity)
 ```
 
@@ -71,7 +71,7 @@ Single validation attempt with retries on failure.
 ```python
 config = SingleShotValidationConfig(
     issues=["The output matches the request"],
-    max_retries=3  # Will retry up to 3 times
+    max_retries=3,  # Will retry up to 3 times
 )
 ```
 
@@ -92,7 +92,7 @@ config = ThresholdVotingValidationConfig(
     issues=["Output is accurate", "Format is correct"],
     count=3,  # 3 validation attempts per issue
     required_ahead=1,  # Need 1 more success than failure
-    max_retries=2
+    max_retries=2,
 )
 ```
 
@@ -113,7 +113,7 @@ config = KAheadVotingValidationConfig(
     issues=["Critical accuracy requirement"],
     count=5,  # 5 validation attempts
     required_ahead=3,  # Need 3 more successes than failures
-    max_retries=2
+    max_retries=2,
 )
 ```
 
@@ -134,7 +134,7 @@ config = SingleShotValidationConfig(
     issues=[
         "The extracted data is complete",
         "The format matches requirements",
-        "No hallucinated information is present"
+        "No hallucinated information is present",
     ]
 )
 ```
@@ -204,13 +204,13 @@ result = await ait.run_task(
         issues=[
             "All product details are accurately extracted",
             "Price is in correct format",
-            "No information is hallucinated"
+            "No information is hallucinated",
         ],
         count=3,
         required_ahead=1,
-        max_retries=2
+        max_retries=2,
     ),
-    echo=True  # Enable logging for debugging
+    echo=True,  # Enable logging for debugging
 )
 ```
 

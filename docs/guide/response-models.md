@@ -9,18 +9,20 @@ Define the structure you want the LLM to return:
 ```python
 from pydantic import BaseModel
 
+
 class Product(BaseModel):
     name: str
     price: float
     in_stock: bool
 
+
 response = await ait.asend(
     response_model=Product,
     template="Extract product info: {{ text }}",
-    text="The laptop costs $999 and is in stock"
+    text="The laptop costs $999 and is in stock",
 )
 
-print(response.content.name)   # "laptop"
+print(response.content.name)  # "laptop"
 print(response.content.price)  # 999.0
 ```
 
@@ -34,15 +36,17 @@ class Address(BaseModel):
     city: str
     country: str
 
+
 class User(BaseModel):
     name: str
     email: str
     address: Address
 
+
 response = await ait.asend(
     response_model=User,
     template="Extract user data: {{ text }}",
-    text="John lives at 123 Main St, Boston, USA. Email: john@example.com"
+    text="John lives at 123 Main St, Boston, USA. Email: john@example.com",
 )
 ```
 
@@ -53,17 +57,20 @@ Extract multiple items:
 ```python
 from typing import List
 
+
 class Task(BaseModel):
     title: str
     priority: str
 
+
 class TaskList(BaseModel):
     tasks: List[Task]
+
 
 response = await ait.asend(
     response_model=TaskList,
     template="Extract all tasks from: {{ text }}",
-    text="High priority: Fix bug. Low priority: Update docs."
+    text="High priority: Fix bug. Low priority: Update docs.",
 )
 ```
 
@@ -78,22 +85,23 @@ Constrain a field to specific values:
 ```python
 from typing import Literal
 
+
 class Purchase(BaseModel):
     product: str
     quantity: int
+
 
 available_products = ["apple", "banana", "orange"]
 
 # Inject Literal type for product field
 PurchaseModel = ait.inject_types(
-    Purchase,
-    fields=[("product", Literal[tuple(available_products)])]
+    Purchase, fields=[("product", Literal[tuple(available_products)])]
 )
 
 response = await ait.asend(
     response_model=PurchaseModel,
     template="Extract purchase: {{ text }}",
-    text="I want 5 apples"
+    text="I want 5 apples",
 )
 # response.content.product will only be one of: apple, banana, orange
 ```
@@ -106,7 +114,7 @@ Add context to injected fields:
 FruitPurchase = ait.inject_types(
     Purchase,
     fields=[("product", Literal[tuple(available_products)])],
-    docstring="A purchase of fruits from our inventory"
+    docstring="A purchase of fruits from our inventory",
 )
 ```
 
@@ -126,10 +134,12 @@ Reduce token usage by simplifying model schemas:
 ```python
 class DetailedProduct(BaseModel):
     """A product with extensive metadata"""
+
     name: str
     description: str
     price: float
     # ... many more fields
+
 
 # Get simplified schema
 schema = ait.reduce_model_schema(DetailedProduct)
@@ -148,19 +158,21 @@ Response models automatically validate LLM outputs:
 ```python
 from pydantic import validator
 
+
 class Age(BaseModel):
     value: int
 
-    @validator('value')
+    @validator("value")
     def check_age(cls, v):
         if v < 0 or v > 150:
-            raise ValueError('Invalid age')
+            raise ValueError("Invalid age")
         return v
+
 
 # LLM output will be validated against your constraints
 response = await ait.asend(
     response_model=Age,
     template="Extract age from: {{ text }}",
-    text="She is 25 years old"
+    text="She is 25 years old",
 )
 ```

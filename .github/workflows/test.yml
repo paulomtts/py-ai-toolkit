@@ -20,7 +20,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -e ".[dev]"
+        pip install -e ".[dev,jev]"
 
     - name: Run tests
       run: pytest tests/ --ignore=tests/test_run_task.py
