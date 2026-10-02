@@ -283,9 +283,7 @@ async def test_structured_state_and_instructions_pass_through():
     state = {"message": "I was charged twice.", "attachments": ["receipt.pdf"]}
     instructions = {"question": "Is this about billing?", "scope": ["charges"]}
 
-    await adapter.classify(
-        state, {"billing": NoulQuestion(instructions=instructions)}
-    )
+    await adapter.classify(state, {"billing": NoulQuestion(instructions=instructions)})
 
     sent_state, sdk_questions = adapter._client.system_one.await_args.args
     assert sent_state == state
